@@ -1,0 +1,22 @@
+internal_db:
+  host: 172.15.0.2
+  user: root
+  passwd: dummypassword
+  database: alice_data
+
+simulator:
+  table: bb
+  eve: no
+
+module:
+  table: handles
+
+log_db:
+  host: 172.15.0.2
+  user: root
+  passwd: dummypassword
+  database: log
+
+vault:
+  host: 172.15.0.3
+  token: s.qSYNEKbCQVlGEO9QG4IOmwkd
