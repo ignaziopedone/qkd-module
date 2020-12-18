@@ -1,3 +1,0 @@
-[submodule "qkd-simulator"]
-	path = qkd-simulator
-	url = https://130.192.1.26/quantum-cryptography/qkd-simulator

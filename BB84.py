@@ -114,10 +114,15 @@ def getQuantumKey():
 				# a new key exchange can be started
 				# insert information
 				if DEBUG:
-					print("INSERT INTO " + str(prefs['simulator']['table']) + " (requestIP, complete, exchangedKey, verified) VALUES ('%s', False, NULL, False)" % (requestIP))
-				cursor.execute("INSERT INTO " + str(prefs['simulator']['table']) + " (requestIP, complete, exchangedKey, verified) VALUES ('%s', False, NULL, False)" % (requestIP))
-			# release db lock
-			cursor.execute("UNLOCK TABLES")
+					print("INSERT INTO " + str(prefs['simulator']['table']) + " (requestIP, complete, exchangedKey, verified) VALUES ('%s', True, %s, True)" % (requestIP, str(bob)))
+				cursor.execute("INSERT INTO " + str(prefs['simulator']['table']) + " (requestIP, complete, exchangedKey, verified) VALUES ('%s', True, %s, True)" % (requestIP, str(bob)))
+				# save key in vault
+				client = hvac.Client(url='http://' + prefs['vault']['host'] + ':8200')
+				client.token = prefs['vault']['token']
+				client.secrets.kv.v2.create_or_update_secret(path='currentKey', secret=dict(key=bob),)
+				# release db lock
+				cursor.execute("UNLOCK TABLES")
+				return "OK", 200
 		except Exception as e:
 			# always release lock before quit
 			cursor.execute("UNLOCK TABLES")
@@ -319,26 +324,7 @@ def generateQubits(eve=False):
 	# Execute the quantum circuit
 	backend = BasicAer.get_backend('qasm_simulator')
 	result = execute(alice, backend=backend, shots=1).result()
-	'''
-	# I qubit misurati non restano polarizzati, se misuro di nuovo ottengo dei dati casuali (nella base X - la Z dà
-	# comunque risultati certi perchè il qubit viene inizializzato a |0>). Questo spiegherebbe perchè l'invio del solo
-	# quantum register non funziona e devo inviare l'intero circuito per la copia.
-	# Quindi non posso usare come chiave la misurazione di questo circuito.
-	# In un vero computer quantistico invece funzionerebbe, giusto??????
 
-	temp_alice_key = list(result.get_counts(alice))[0]
-	temp_alice_key = temp_alice_key[::-1]      # key is reversed so that first qubit is the first element of the list
-	app.logger.info("measure: ", temp_alice_key)
-	#backend = BasicAer.get_backend('qasm_simulator')    
-	result = execute(alice, backend=backend, shots=1).result()
-	temp_alice_key = list(result.get_counts(alice))[0]
-	temp_alice_key = temp_alice_key[::-1]      # key is reversed so that first qubit is the first element of the list
-	app.logger.info("measure: ", temp_alice_key)
-	result = execute(alice, backend=backend, shots=1).result()
-	temp_alice_key = list(result.get_counts(alice))[0]
-	temp_alice_key = temp_alice_key[::-1]      # key is reversed so that first qubit is the first element of the list
-	app.logger.info("measure: ", temp_alice_key)
-	'''
 
 	if eve:
 		# EVE is listening on the quantum channel - now she makes her measurements
@@ -509,9 +495,11 @@ class BB84(QKD):
 			cursor.execute("UNLOCK TABLES")
 			raise(e)
 
-		# get the first piece of the key
-		alice_key = getKeyChunk(destination, True, key_length, eve)
-		if alice_key is None:
+		# [cr] here
+		# send key
+		alice_key = randomStringGen(key_length)
+		x = requests.post(destination + '/sendRegister?newKey=true&keyLen=' + str(key_length), data = pickle.dumps(alice_key))
+		if x.status_code != 200:
 			# get key chunk failed
 			# since exchange failed, delete record from db
 			if DEBUG:
@@ -520,55 +508,6 @@ class BB84(QKD):
 			return None, False
 		current_len = len(alice_key)
 
-		# exchange all qubit needed up to key_length
-		while current_len < generateLength:
-			# get a new piece of key
-			keyChunk = getKeyChunk(destination, eve=eve)
-			if keyChunk is None:
-			# error occurred - clean requests list
-				if DEBUG:
-					print("DELETE FROM " + str(prefs['simulator']['table']) + " WHERE `requestIP` = '%s'" % (request.remote_addr))
-				cursor.execute("DELETE FROM " + str(prefs['simulator']['table']) + " WHERE `requestIP` = '%s'" % (request.remote_addr))
-				return None, False
-			# append the new piece to the key
-			alice_key += keyChunk
-			current_len += len(keyChunk)
-
-		# randomly select bit to be used for key verification
-		picked, verifyingKey = [], []
-		i = 0
-		# we need to generate a random number between 0 and generateLength
-		# randomStringGen generates a string of bit - calculate how many bit we need to get a consistent top value
-		bits = 0
-		temp = generateLength
-		while temp > 0:
-			temp = temp >> 1
-			bits += 1
-		while i < generateLength - key_length:
-			# generate a valid random number (in range 0 - key_length + generateLength and not already used)
-			while True:
-				randNo = randomStringGen(bits)
-				# convert bit string into bytes
-				randNo = int(randNo, 2)
-				if randNo >= generateLength:
-					# not a valid number
-					continue
-				if randNo in picked:
-					# number already used
-					continue
-				# number is valid - exit from this inner loop
-				break
-			# add randNo to list of picked
-			picked.append(randNo)
-			i += 1
-
-		# remove used bits from the key
-		for i in sorted(picked, reverse=True):
-			verifyingKey.append(int(alice_key[i]))
-			del alice_key[i]
-
-		# make sure key length is exactly equals to key_length
-		alice_key = alice_key[:key_length]
 
 		app.logger.info("Key exchange completed - new key: %s" % alice_key)
 		app.logger.info("key len: %s" % str(len(alice_key)))
@@ -585,39 +524,9 @@ class BB84(QKD):
 			cursor.execute("UNLOCK TABLES")
 			raise(e)
 
-		# sign data with our private key
-		keySign = sphincs.sign(bytes(verifyingKey), alicePrivateKey)
-		pickSign = sphincs.sign(bytes(picked), alicePrivateKey)
-		# send data and signature to verify key exchange
-		x = requests.post(destination + '/verifyKey', data = repr([verifyingKey, keySign, picked, pickSign]))
-		if x.status_code != 200:
-			app.logger.error("Server error occurred %s" % x.status_code)
-			return alice_key, False
-
-		# get Bob's reply
-		rep = eval(x.content)
-		bobKey = rep[0]
-		bobKeySign = rep[1]
-
-		# verify Bob's signature
-		if not sphincs.verify(bytes(bobKey), bobKeySign, bobPublicKey):
-			app.logger.error("Key verification failed due to wrong signature!")
-			return alice_key, false
-
-		# check that Alice and Bob have the same key
-		acc = 0
-		for bit in zip(verifyingKey, bobKey):
-			if bit[0] == bit[1]:
-				acc += 1
-
-		app.logger.info('\nPercentage of similarity between the keys: %s' % str(acc/len(verifyingKey)))
-
-		if (acc//len(verifyingKey) == 1):
-			return alice_key, True
-			app.logger.info("\nKey exchange has been successfull")
-		else:
-			app.logger.error("\nKey exchange has been tampered! Check for eavesdropper or try again")
-			return alice_key, False
+		
+		return alice_key, True
+		app.logger.info("\nKey exchange has been successfull")
 
 
 	def begin(self, port = 4000):
