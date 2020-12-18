@@ -21,22 +21,23 @@ import hvac
 import yaml
 from QKD import QKD
 
+pref_file = open("/usr/src/app/config/configM.yaml", 'r')
+prefs = yaml.safe_load(pref_file)
+
+
 # global variables
 alice_key = []
 alice_table = []
 temp_alice_key = ''
 key_length = 128
-bobPublicKey = b'64ewf98wqrsdfft1^\xbf\x9a\x1e\xdc\xac+\x94\x06E\x12\xfa?\xa2\xddf'
+bobPublicKey = eval(prefs['simulator']['public_key'])
 defaultLen = 128 # can be overwritten from command line
 chunk = 16 # for a local backend n can go as up as 23, after that it raises a Memory Error
-alicePrivateKey=b'124986546848776451342111546854654643545484981234>\xff\xb3\xa9\x96F\x94\xbc\xadHz\xca\xcd\xc7+.'
+alicePrivateKey=eval(prefs['simulator']['private_key'])
 app = Flask(__name__)
 server = None
 serverPort = 4000
 DEBUG = False
-
-pref_file = open("configM.yaml", 'r')
-prefs = yaml.safe_load(pref_file)
 
 
 # utility function - timeout parameter is expressed in milliseconds

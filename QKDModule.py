@@ -5,6 +5,11 @@ __handle_list is the internal list of key_handle. It is a dictionary that save i
 "key_handle" : [destination, qos, linkedToPeer (True/False)]
 '''
 
+import sys
+from pathlib import Path
+path = Path(__file__).parent
+sys.path.insert(1, str(path))
+
 import requests
 import time
 from flask import Flask, request
@@ -16,12 +21,13 @@ import mysql.connector
 import yaml
 import hvac
 import json
+import logging
 
 app = Flask(__name__)
 serverPort = 4000
 DEBUG = False
 
-pref_file = open("configM.yaml", 'r')
+pref_file = open("/usr/src/app/config/configM.yaml", 'r')
 prefs = yaml.safe_load(pref_file)
 
 # global parameters
@@ -324,7 +330,7 @@ class QKDModule():
 				# convert bit string into bytes
 				randNo = int(randNo, 2)
 				time.sleep(randNo)
-
+				
 				cursor.execute("LOCK TABLES currentExchange WRITE")
 				cursor.execute("SELECT * FROM currentExchange")
 				result = cursor.fetchone()
@@ -520,6 +526,11 @@ def main():
 		exit(2)
 	core = QKDCore()
 	core.begin(serverPort + 1)
+	fh = logging.FileHandler('module.log')
+	formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+	fh.setFormatter(formatter)
+	app.logger.addHandler(fh)
+	app.logger.setLevel(logging.DEBUG)
 	# launch 
 	app.run(host='0.0.0.0', port=serverPort)
 
