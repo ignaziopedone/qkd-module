@@ -6,7 +6,7 @@ class QKD(abc.ABC):
 		pass
 
 	@abc.abstractmethod
-	def exchangeKey(self, key_length, key_id, destination, timeout, eve):
+	def exchangeKey(self, key_length, key_id, destination, timeout, source, eve):
 		pass
 
 	@abc.abstractmethod
