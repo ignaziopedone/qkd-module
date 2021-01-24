@@ -23,7 +23,6 @@ serverPort = 4000
 
 # synchronization variables
 keyNo = 0
-maxKeys = 20 # [cr] use server settings
 
 # DB ELEMENTS POSITION
 # handles table
@@ -36,7 +35,7 @@ _NEWKEY = 5
 _CURRENTKEYNO = 6
 _STOP = 7
   
-pref_file = open("/usr/src/app/config/configM.yaml", 'r')
+pref_file = open("configM.yaml", 'r')
 prefs = yaml.safe_load(pref_file)
 
 if str(prefs['module']['sim']) == 'bb84':
@@ -98,8 +97,7 @@ class QKDModule():
 	@return: Key_stream_ID and status. Caller should check status variable before using Key_stream_ID to ensure request was successful.
 	'''
 	def OPEN_CONNECT(self, source, destination, qos, Key_stream_ID, status):
-		global keyExchanger
-		db = mysql.connector.connect(host=str(prefs['internal_db']['host']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
+		db = mysql.connector.connect(host=str(prefs['internal_db']['host']), port=str(prefs['internal_db']['port']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
 		cursor = db.cursor()
 
 		time.sleep(random.randint(1,10)) # [cr] replace with a better management
@@ -151,7 +149,7 @@ class QKDModule():
 	@return status
 	'''
 	def CLOSE(self, Key_stream_ID, status):
-		db = mysql.connector.connect(host=str(prefs['internal_db']['host']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
+		db = mysql.connector.connect(host=str(prefs['internal_db']['host']), port=str(prefs['internal_db']['port']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
 		cursor = db.cursor()
 		# use a lock to access database to avoid concurrency access
 		cursor.execute("LOCK TABLES " + str(prefs['module']['table']) + " WRITE")
@@ -181,7 +179,7 @@ class QKDModule():
 	'''
 	def GET_KEY(self, Key_stream_ID, index, key_buffer, Metadata, status):
 		# vault access must be synchronized with GET_KEY function - use DB lock for this purpose
-		db = mysql.connector.connect(host=str(prefs['internal_db']['host']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
+		db = mysql.connector.connect(host=str(prefs['internal_db']['host']), port=str(prefs['internal_db']['port']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
 		cursor = db.cursor()
 		cursor.execute("LOCK TABLES " + str(prefs['module']['table']) + " WRITE")
 		
@@ -242,7 +240,7 @@ class QKDModule():
 	@return key_number
 	'''
 	def AVAILABLE_KEYS(self, Key_stream_ID):
-		db = mysql.connector.connect(host=str(prefs['internal_db']['host']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
+		db = mysql.connector.connect(host=str(prefs['internal_db']['host']), port=str(prefs['internal_db']['port']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
 		cursor = db.cursor()
 		cursor.execute("SELECT * FROM " + str(prefs['module']['table']))
 		result = cursor.fetchone()
@@ -250,10 +248,14 @@ class QKDModule():
 		return currentKno
 
 
+'''
+Syncrhonization API
+'''
+
 @app.route('/sync', methods=['GET'])
 def synchronize():
 	handle_req = str(request.args.get('key_handle'))
-	db = mysql.connector.connect(host=str(prefs['internal_db']['host']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
+	db = mysql.connector.connect(host=str(prefs['internal_db']['host']), port=str(prefs['internal_db']['port']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
 	cursor = db.cursor()
 	cursor.execute("SELECT * FROM " + str(prefs['module']['table']) + " WHERE handle = '%s'" % handle_req)
 	result = cursor.fetchone()
@@ -276,7 +278,6 @@ def synchronize():
 			cursor.execute("UNLOCK TABLES")
 		except Exception as e:
 			cursor.execute("UNLOCK TABLES")
-			app.logger.info("Exception occurred " + str(e)) # [cr] remove
 			return "Internal Server Error", 503
 	return "OK", 200
 
@@ -284,11 +285,164 @@ def synchronize():
 @app.route('/start', methods=['POST'])
 def start():
 	key_handle = eval(request.data)
-	db = mysql.connector.connect(host=str(prefs['internal_db']['host']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
+	db = mysql.connector.connect(host=str(prefs['internal_db']['host']), port=str(prefs['internal_db']['port']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
 	cursor = db.cursor()
 	cursor.execute("UPDATE " + str(prefs['module']['table']) + " SET newKey = True WHERE handle = '%s'" % key_handle)
 	return "OK", 200
 
+
+
+'''
+Web server API
+'''
+@app.route('/open_connect', methods=['POST'])
+def OPEN_CONNECT():
+	try:
+		req_data = eval(request.data)
+		source = req_data[0]
+		destination = req_data[1]
+		qos = req_data[2]
+		Key_stream_ID = req_data[3]
+		db = mysql.connector.connect(host=str(prefs['internal_db']['host']), port=str(prefs['internal_db']['port']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
+		cursor = db.cursor()
+
+		time.sleep(random.randint(1,10)) # [cr] replace with a better management
+		
+		cursor.execute("SELECT * FROM " + str(prefs['module']['table']))
+		result = cursor.fetchone()
+		if result is not None:
+			if Key_stream_ID is None:
+				# an handle has already been registered. Only calls with a specified handle will be accepted
+				status = NO_QKD_CONNECTION_AVAILABLE
+				return repr([str(Key_stream_ID), status]), 400
+			if Key_stream_ID is not None:
+				# check if Key_stream_ID has already been assigned
+				cursor.execute("SELECT * FROM " + str(prefs['module']['table']) + " WHERE handle = '%s'" % str(Key_stream_ID))
+				result = cursor.fetchone()
+				if result is None:
+					# ID not found, error
+					status = NO_QKD_CONNECTION_AVAILABLE
+					return repr([str(Key_stream_ID), status]), 400
+				# key ID was already sent from the other module, update its information
+				cursor.execute("LOCK TABLES " + str(prefs['module']['table']) + " WRITE")
+				cursor.execute("UPDATE " + str(prefs['module']['table']) + " SET destination = '%s', timeout = %d, length = %d, synchronized = True WHERE handle = '%s'" % (str(destination), int(qos['timeout']), int(qos['length']), str(Key_stream_ID)))
+				cursor.execute("UNLOCK TABLES")
+		else:
+			# Key_stream_ID must be a UUID_v4 as per standard specification
+			Key_stream_ID = str(uuid.uuid4())
+			# insert Key_stream_ID in handles' list with its related information
+			cursor.execute("INSERT INTO " + str(prefs['module']['table']) + " (handle, destination, timeout, length, synchronized, newKey) VALUES ('%s', '%s', %d, %d, False, False)" % (str(Key_stream_ID), str(destination), int(qos['timeout']), int(qos['length'])))
+
+		# start synchronization
+		x = requests.get('http://' + destination + '/sync?key_handle=' + str(Key_stream_ID))
+		if x.status_code != 200:
+			# an error occurred. Procedure must be repeated
+			status = NO_QKD_CONNECTION_AVAILABLE
+			return repr([str(Key_stream_ID), status]), 400
+
+		status = SUCCESSFUL
+		return repr([str(Key_stream_ID), status]), 200
+	except Exception as e:
+		return "Server error", 500
+
+
+@app.route('/close', methods=['POST'])
+def CLOSE():
+	req_data = eval(request.data)
+	Key_stream_ID = req_data[0]
+
+	db = mysql.connector.connect(host=str(prefs['internal_db']['host']), port=str(prefs['internal_db']['port']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
+	cursor = db.cursor()
+	# use a lock to access database to avoid concurrency access
+	cursor.execute("LOCK TABLES " + str(prefs['module']['table']) + " WRITE")
+	try:
+		cursor.execute("UPDATE " + str(prefs['module']['table']) + " SET stop = true WHERE handle = '%s'" % str(Key_stream_ID))
+		cursor.execute("UNLOCK TABLES")
+	except Exception as e:
+		cursor.execute("UNLOCK TABLES")
+		status = NO_QKD_CONNECTION_AVAILABLE
+		return str(status), 400
+	# signal the running thread to stop
+	status = SUCCESSFUL
+	return str(status), 200
+
+
+
+@app.route('/get_key', methods=['POST'])
+def GET_KEY():
+	req_data = eval(request.data)
+	Key_stream_ID = req_data[0]
+	index = req_data[1]
+	Metadata = req_data[2]
+
+	# vault access must be synchronized with GET_KEY function - use DB lock for this purpose
+	db = mysql.connector.connect(host=str(prefs['internal_db']['host']), port=str(prefs['internal_db']['port']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
+	cursor = db.cursor()
+	cursor.execute("LOCK TABLES " + str(prefs['module']['table']) + " WRITE")
+	
+	try:
+		client = hvac.Client(url='http://' + prefs['vault']['host'] + ':' + str(prefs['vault']['port']))
+		client.token = prefs['vault']['token']
+		response = client.secrets.kv.read_secret_version(path=Key_stream_ID)
+		keys = response['data']['data']['keys']
+		if index == -1:
+			# index not specified, return the first available key
+			entry = keys.pop(0)
+			index = entry[0]
+			key = eval(entry[1])
+		else:
+			key = 0
+			# iterate the list until the desired index is found
+			for i in range(len(keys)):
+				if int(index) == int(keys[i][0]):
+					key = eval(keys[i][1])
+					# remove element from the list
+					entry = keys.pop(i)
+					break
+			if key == 0:
+				# no key with specified index found - error
+				status = INSUFFICIENT_KEY_AVAILABLE
+				# release vault lock
+				cursor.execute("UNLOCK TABLES")
+				app.logger.info("NO KEY FOUND") # [cr] remove
+				return repr([None, index, status]), 400
+
+		# if keys list is empty now remove the whole handle from vault, otherwise just update the list on the storage 
+		if keys == []:
+			client.secrets.kv.delete_metadata_and_all_versions(Key_stream_ID)
+		else:
+			client.secrets.kv.v2.create_or_update_secret(path=Key_stream_ID, secret=dict(keys=keys),)
+		# update the number of available keys
+		cursor.execute("UPDATE " + str(prefs['module']['table']) + " SET currentKeyNo = %d WHERE handle = '%s'" % (len(keys), str(Key_stream_ID)))
+		# release vault lock
+		cursor.execute("UNLOCK TABLES")
+
+		# return key associated to this key handle
+		status = SUCCESSFUL
+		return repr([key, index, status]), 200
+	except Exception as e:
+		app.logger.info("Exception: %s" % str(e)) # [cr] remove
+		# if key handle does not exist in vault an exception is thrown
+		# release lock and return an error
+		cursor.execute("UNLOCK TABLES")
+		status = INSUFFICIENT_KEY_AVAILABLE
+		return repr([None, -1, status]), 400
+
+
+@app.route('/available_keys', methods=['POST'])
+def AVAILABLE_KEYS():
+		req_data = eval(request.data)
+		db = mysql.connector.connect(host=str(prefs['internal_db']['host']), port=str(prefs['internal_db']['port']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
+		cursor = db.cursor()
+		cursor.execute("SELECT * FROM " + str(prefs['module']['table']))
+		result = cursor.fetchone()
+		currentKno = int(result[_CURRENTKEYNO])
+		return repr([currentKno]), 200
+
+
+'''
+Key exchanger thread
+'''
 
 class QKDExchange(Thread):
 	def __init__(self):
@@ -297,7 +451,7 @@ class QKDExchange(Thread):
 	def run(self):
 		global keyNo
 
-		db = mysql.connector.connect(host=str(prefs['internal_db']['host']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
+		db = mysql.connector.connect(host=str(prefs['internal_db']['host']), port=str(prefs['internal_db']['port']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
 		cursor = db.cursor()
 		sync = False
 		core = QKDCore()
@@ -332,7 +486,7 @@ class QKDExchange(Thread):
 			# sender code
 			if sender == 1:
 				# wait if we reached the maximum number of keys storable
-				while currentKno >= maxKeys and stop != True:
+				while currentKno >= prefs['module']['max_key_count'] and stop != True:
 					cursor.execute("SELECT * FROM " + str(prefs['module']['table']))
 					result = cursor.fetchone()
 					currentKno = result[_CURRENTKEYNO]

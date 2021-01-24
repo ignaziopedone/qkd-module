@@ -10,7 +10,7 @@ import multiprocessing
 from multiprocessing import Process
 import logging
 
-pref_file = open("/usr/src/app/config/configM.yaml", 'r')
+pref_file = open("configM.yaml", 'r')
 prefs = yaml.safe_load(pref_file)
 
 app = Flask(__name__)
@@ -36,9 +36,9 @@ def getQuantumKey():
 	key = eval(request.data)
 	requestIP = request.remote_addr
 	# retrieve information about this destination if any
-	db = mysql.connector.connect(host=str(prefs['internal_db']['host']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
+	db = mysql.connector.connect(host=str(prefs['internal_db']['host']), port=str(prefs['internal_db']['port']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
 	cursor = db.cursor()
-	cursor.execute("SELECT * FROM " + str(prefs['simulator']['table']) + " WHERE requestIP = '%s'" % requestIP)
+	cursor.execute("SELECT * FROM " + str(prefs['simulator']['table']))
 	result = cursor.fetchone()
 	if result is not None:
 		# previous key exchange is not completed yet, return an error
@@ -76,19 +76,19 @@ class fakeKE(QKD):
 		else:
 			# check if a key has already been exchanged with desired destination
 			destAddr = str(destination.split(':')[1][2:])
-			db = mysql.connector.connect(host=str(prefs['internal_db']['host']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
+			db = mysql.connector.connect(host=str(prefs['internal_db']['host']), port=str(prefs['internal_db']['port']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
 			cursor = db.cursor()
-			cursor.execute("SELECT * FROM " + str(prefs['simulator']['table']) + " WHERE requestIP = '%s'" % (destAddr))
+			cursor.execute("SELECT * FROM " + str(prefs['simulator']['table']))
 			result = cursor.fetchone()
 			if result is None:
 				# key has not been received yet, wait until the key is received or timeout elapses
 				start_time = current_time()
 				while result is None:
-					cursor.execute("SELECT * FROM " + str(prefs['simulator']['table']) + " WHERE requestIP = '%s'" % (destAddr))
+					cursor.execute("SELECT * FROM " + str(prefs['simulator']['table']))
 					result = cursor.fetchone()
 					if current_time() > start_time + timeout:
 						# timeout elapsed - clean requests list
-						cursor.execute("DELETE FROM " + str(prefs['simulator']['table']) + " WHERE `requestIP` = '%s'" % (destAddr))
+						cursor.execute("DELETE FROM " + str(prefs['simulator']['table']))
 						return None, 4
 
 			# now key exchange is complete
@@ -102,7 +102,7 @@ class fakeKE(QKD):
 			client.secrets.kv.delete_metadata_and_all_versions('currentKey')
 			# once key has been exchange, delete its data from this module
 			cursor.execute("LOCK TABLES " + str(prefs['simulator']['table']) + " WRITE")
-			cursor.execute("DELETE FROM " + str(prefs['simulator']['table']) + " WHERE `requestIP` = '%s'" % (destAddr))
+			cursor.execute("DELETE FROM " + str(prefs['simulator']['table']))
 			return key, verified
 
 	def begin(self, port = 4000):
