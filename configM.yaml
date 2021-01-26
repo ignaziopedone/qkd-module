@@ -5,11 +5,10 @@ internal_db:
   passwd: dummypassword
   database: alice_data
 
-simulator:
-  table: bb
-  eve: no
-  private_key: b'afdhfkjshg65468468afweff68f8684a64ewf98wqrsdfft1^\xbf\x9a\x1e\xdc\xac+\x94\x06E\x12\xfa?\xa2\xddf'
-  public_key: b'4643545484981234>\xff\xb3\xa9\x96F\x94\xbc\xadHz\xca\xcd\xc7+.'
+vault:
+  host: 10.0.2.15
+  token: s.qSYNEKbCQVlGEO9QG4IOmwkd
+  port: 8200
 
 module:
   table: handles
@@ -18,7 +17,8 @@ module:
   # sim: bb84
   max_key_count: 20
 
-vault:
-  host: 10.0.2.15
-  token: s.qSYNEKbCQVlGEO9QG4IOmwkd
-  port: 8200
+simulator:
+  table: bb
+  eve: no
+  private_key: b'afdhfkjshg65468468afweff68f8684a64ewf98wqrsdfft1^\xbf\x9a\x1e\xdc\xac+\x94\x06E\x12\xfa?\xa2\xddf'
+  public_key: b'4643545484981234>\xff\xb3\xa9\x96F\x94\xbc\xadHz\xca\xcd\xc7+.'
