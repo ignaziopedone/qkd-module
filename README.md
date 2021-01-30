@@ -14,6 +14,7 @@ If you plan to use QKD Module within a QKD Key server you can skip this part sin
 If you plan to use QKD Module directly with a final applicaiton you need to make sure all the needed module are correctly setup before launching the code. QKD Module leans on two main services:
 - Vault
 - Mysql
+
 Both of these services must be configured and reachable from the module itself. For furher information about configuration of these services, refer to [QKD Key Server](https://github.com/ignaziopedone/qkd-keyserver) repository's README.
 
 After configuring mysql make sure the following tables are available inside your DB:
@@ -131,6 +132,6 @@ This method is used to synchronize Key_stream_ID during a call to OPEN_CONNECT m
 This method is used during key exchange. Sender uses this function to signal that the lower level simulator has completed a key exchange and the peer module can retrieve the related key. Receiver uses this method to signal sender it has retrieved the key from the lower level simulator and a new key exchange can be started.
 
 
-## Notes.
+## Notes
 QKD Module uses `http` protocol that is insecure. Sniffing information in the communication between two QKD Modules do not impact on the overall security: data exchanged do not contain information about keys exchanged in any way. However, the standard API should be secured since the keys themselves pass through that connection.
 A proposal of improvement can be to use part of the keys exchanges from the simulator as preshared key in order to implement TLS-PSK o other protocols that can ensure a secure data exchange.

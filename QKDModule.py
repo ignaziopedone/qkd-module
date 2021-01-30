@@ -35,7 +35,7 @@ _NEWKEY = 5
 _CURRENTKEYNO = 6
 _STOP = 7
   
-pref_file = open("configM.yaml", 'r')
+pref_file = open("/usr/src/app/src/configM.yaml", 'r')
 prefs = yaml.safe_load(pref_file)
 
 if str(prefs['module']['sim']) == 'bb84':
@@ -404,7 +404,6 @@ def GET_KEY():
 				status = INSUFFICIENT_KEY_AVAILABLE
 				# release vault lock
 				cursor.execute("UNLOCK TABLES")
-				app.logger.info("NO KEY FOUND") # [cr] remove
 				return repr([None, index, status]), 400
 
 		# if keys list is empty now remove the whole handle from vault, otherwise just update the list on the storage 
@@ -421,7 +420,6 @@ def GET_KEY():
 		status = SUCCESSFUL
 		return repr([key, index, status]), 200
 	except Exception as e:
-		app.logger.info("Exception: %s" % str(e)) # [cr] remove
 		# if key handle does not exist in vault an exception is thrown
 		# release lock and return an error
 		cursor.execute("UNLOCK TABLES")
@@ -431,13 +429,38 @@ def GET_KEY():
 
 @app.route('/available_keys', methods=['POST'])
 def AVAILABLE_KEYS():
-		req_data = eval(request.data)
-		db = mysql.connector.connect(host=str(prefs['internal_db']['host']), port=str(prefs['internal_db']['port']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
-		cursor = db.cursor()
-		cursor.execute("SELECT * FROM " + str(prefs['module']['table']))
-		result = cursor.fetchone()
-		currentKno = int(result[_CURRENTKEYNO])
-		return repr([currentKno]), 200
+	req_data = eval(request.data)
+	db = mysql.connector.connect(host=str(prefs['internal_db']['host']), port=str(prefs['internal_db']['port']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
+	cursor = db.cursor()
+	cursor.execute("SELECT * FROM " + str(prefs['module']['table']))
+	result = cursor.fetchone()
+	currentKno = int(result[_CURRENTKEYNO])
+	return repr([currentKno]), 200
+
+
+@app.route('/attach_to_server', methods=['POST'])
+def ATTACH_TO_SERVER():
+	serverIP = eval(request.data)
+	
+	# try to register this QKD module to specified QKD key server
+	x = requests.post('http://' + serverIP + '/api/v1/keys/modules', data=repr([prefs['module']['sim'], prefs['module']['this_public_IP'], prefs['module']['max_key_count']]))
+	if x.status_code != 200:
+		# error
+		return "Key server unavailable", 400
+	# retrieve vault and mysql references
+	result = eval(x.content)
+	prefs['internal_db']['host'] = result[0]
+	prefs['internal_db']['port'] = result[1]
+	prefs['internal_db']['user'] = result[2]
+	prefs['internal_db']['passwd'] = result[3]
+	prefs['internal_db']['database'] = result[4]
+	prefs['vault']['host'] = result[5]
+	prefs['vault']['port'] = result[6]
+	prefs['vault']['token'] = result[7]
+	# write data to config file
+	with open('/usr/src/app/src/configM.yaml', 'w') as fp:
+		yaml.dump(prefs, fp)
+	return "OK", 200
 
 
 '''
@@ -451,133 +474,141 @@ class QKDExchange(Thread):
 	def run(self):
 		global keyNo
 
-		db = mysql.connector.connect(host=str(prefs['internal_db']['host']), port=str(prefs['internal_db']['port']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
-		cursor = db.cursor()
-		sync = False
-		core = QKDCore()
-		while not sync:
-			# make sure both side of communication are sinchronised before starting the exchange
-			cursor.execute("SELECT * FROM " + str(prefs['module']['table']))
-			result = cursor.fetchone()
-			if result is None:
-				continue
-			sync = result[4]
+		while True:
+			try:
+				pref_file = open("/usr/src/app/src/configM.yaml", 'r')
+				prefs = yaml.safe_load(pref_file)
+				
+				db = mysql.connector.connect(host=str(prefs['internal_db']['host']), port=str(prefs['internal_db']['port']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
+				cursor = db.cursor()
+				sync = False
+				core = QKDCore()
+				while not sync:
+					# make sure both side of communication are sinchronised before starting the exchange
+					cursor.execute("SELECT * FROM " + str(prefs['module']['table']))
+					result = cursor.fetchone()
+					if result is None:
+						continue
+					sync = result[4]
 
-		cursor.execute("LOCK TABLES " + str(prefs['module']['table']) + " WRITE")
-		cursor.execute("SELECT * FROM " + str(prefs['module']['table']))
-		result = cursor.fetchone()
-		cursor.execute("UNLOCK TABLES")
-			
-		# now both side are ready
-		Key_stream_ID = result[_HANDLE]
-		key_length = result[_LENGTH]
-		timeout = result[_TIMEOUT]
-		destination = result[_DESTINATION]
-		stop = result[_STOP]
-		currentKno = int(result[_CURRENTKEYNO])
-		
-		portNo = int(destination[-4] + destination[-3] + destination[-2] + destination[-1])
-		QKDdestination = 'http://' + destination[:-4] + str(portNo + 1)
+				cursor.execute("LOCK TABLES " + str(prefs['module']['table']) + " WRITE")
+				cursor.execute("SELECT * FROM " + str(prefs['module']['table']))
+				result = cursor.fetchone()
+				cursor.execute("UNLOCK TABLES")
+					
+				# now both side are ready
+				Key_stream_ID = result[_HANDLE]
+				key_length = result[_LENGTH]
+				timeout = result[_TIMEOUT]
+				destination = result[_DESTINATION]
+				stop = result[_STOP]
+				currentKno = int(result[_CURRENTKEYNO])
+				
+				portNo = int(destination[-4] + destination[-3] + destination[-2] + destination[-1])
+				QKDdestination = 'http://' + destination[:-4] + str(portNo + 1)
 
-		sender = int(prefs['module']['sender'])
+				sender = int(prefs['module']['sender'])
 
-		# exchange keys until CLOSE method is called
-		while stop != True:
-			# sender code
-			if sender == 1:
-				# wait if we reached the maximum number of keys storable
-				while currentKno >= prefs['module']['max_key_count'] and stop != True:
+				# exchange keys until CLOSE method is called
+				while stop != True:
+					# sender code
+					if sender == 1:
+						# wait if we reached the maximum number of keys storable
+						while currentKno >= prefs['module']['max_key_count'] and stop != True:
+							cursor.execute("SELECT * FROM " + str(prefs['module']['table']))
+							result = cursor.fetchone()
+							currentKno = result[_CURRENTKEYNO]
+							stop = result[_STOP]
+
+						key, verified = core.exchangeKey(key_length, QKDdestination, timeout, prefs['module']['sender'])
+						# signal destination it can retrieve the key
+						x = requests.post('http://' + str(destination) + '/start', data=repr(Key_stream_ID))
+						# save the key in vault
+						if verified == True:
+							# convert the array of bits into an array of bytes as per QKD specifications (bit 0 is the first bit of the octect - ETSI GS QKD 004 v2.1.1 (2020-8), page 10, table 2)
+							key = convertToBytes(key, key_length)
+							# vault access must be synchronized with GET_KEY function - use DB lock for this purpose
+							cursor.execute("LOCK TABLES " + str(prefs['module']['table']) + " WRITE")
+							try:
+								client = hvac.Client(url='http://' + prefs['vault']['host'] + ':' + str(prefs['vault']['port']))
+								client.token = prefs['vault']['token']
+								try:
+									response = client.secrets.kv.read_secret_version(path=Key_stream_ID)
+									keys = response['data']['data']['keys']
+									keys.append([keyNo, str(key)])
+								except:
+									# if key handle does not exist in vault yet
+									keys = [[keyNo, str(key)]]
+								keyNo = keyNo + 1
+								client.secrets.kv.v2.create_or_update_secret(path=Key_stream_ID, secret=dict(keys=keys),)
+								# update the number of available keys
+								cursor.execute("UPDATE " + str(prefs['module']['table']) + " SET currentKeyNo = %d WHERE handle = '%s'" % (len(keys), str(Key_stream_ID)))
+								# release vault lock
+								cursor.execute("UNLOCK TABLES")
+							except:
+								cursor.execute("UNLOCK TABLES")
+
+							newKey = False
+							while not newKey:
+								# wait for the other module to retrieve the same key
+								cursor.execute("SELECT * FROM " + str(prefs['module']['table']) + " WHERE handle = '%s'" % Key_stream_ID)
+								result = cursor.fetchone()
+								newKey = result[_NEWKEY]
+
+							# reset flag
+							cursor.execute("UPDATE " + str(prefs['module']['table']) + " SET newKey = False WHERE handle = '%s'" % str(Key_stream_ID))
+					# receiver code
+					else:
+						# wait until sender sends a key
+						newKey = False
+						while not newKey:
+							# wait for the other module to retrieve the same key
+							cursor.execute("SELECT * FROM " + str(prefs['module']['table']) + " WHERE handle = '%s'" % Key_stream_ID)
+							result = cursor.fetchone()
+							newKey = result[_NEWKEY]
+
+						# reset flag
+						cursor.execute("UPDATE " + str(prefs['module']['table']) + " SET newKey = False WHERE handle = '%s'" % str(Key_stream_ID))
+
+						# retrieve the just exchanged key
+						key, verified = core.exchangeKey(key_length, QKDdestination, timeout, prefs['module']['sender'])
+
+						# signal sender it can exchange a new key
+						x = requests.post('http://' + str(destination) + '/start', data=repr(Key_stream_ID))
+						# save the key in vault
+						if verified == True:
+							# convert the array of bits into an array of bytes as per QKD specifications (bit 0 is the first bit of the octect - ETSI GS QKD 004 v2.1.1 (2020-8), page 10, table 2)
+							key = convertToBytes(key, key_length)
+							# vault access must be synchronized with GET_KEY function - use DB lock for this purpose
+							cursor.execute("LOCK TABLES " + str(prefs['module']['table']) + " WRITE")
+							try:
+								client = hvac.Client(url='http://' + prefs['vault']['host'] + ':' + str(prefs['vault']['port']))
+								client.token = prefs['vault']['token']
+								try:
+									response = client.secrets.kv.read_secret_version(path=Key_stream_ID)
+									keys = response['data']['data']['keys']
+									keys.append([keyNo, str(key)])
+								except:
+									# if key handle does not exist in vault yet
+									keys = [[keyNo, str(key)]]
+								keyNo = keyNo + 1
+								client.secrets.kv.v2.create_or_update_secret(path=Key_stream_ID, secret=dict(keys=keys),)
+								# update the number of available keys
+								cursor.execute("UPDATE " + str(prefs['module']['table']) + " SET currentKeyNo = %d WHERE handle = '%s'" % (len(keys), str(Key_stream_ID)))
+								# release vault lock
+								cursor.execute("UNLOCK TABLES")
+							except:
+								cursor.execute("UNLOCK TABLES")
 					cursor.execute("SELECT * FROM " + str(prefs['module']['table']))
 					result = cursor.fetchone()
 					currentKno = result[_CURRENTKEYNO]
 					stop = result[_STOP]
 
-				key, verified = core.exchangeKey(key_length, QKDdestination, timeout, prefs['module']['sender'])
-				# signal destination it can retrieve the key
-				x = requests.post('http://' + str(destination) + '/start', data=repr(Key_stream_ID))
-				# save the key in vault
-				if verified == True:
-					# convert the array of bits into an array of bytes as per QKD specifications (bit 0 is the first bit of the octect - ETSI GS QKD 004 v2.1.1 (2020-8), page 10, table 2)
-					key = convertToBytes(key, key_length)
-					# vault access must be synchronized with GET_KEY function - use DB lock for this purpose
-					cursor.execute("LOCK TABLES " + str(prefs['module']['table']) + " WRITE")
-					try:
-						client = hvac.Client(url='http://' + prefs['vault']['host'] + ':' + str(prefs['vault']['port']))
-						client.token = prefs['vault']['token']
-						try:
-							response = client.secrets.kv.read_secret_version(path=Key_stream_ID)
-							keys = response['data']['data']['keys']
-							keys.append([keyNo, str(key)])
-						except:
-							# if key handle does not exist in vault yet
-							keys = [[keyNo, str(key)]]
-						keyNo = keyNo + 1
-						client.secrets.kv.v2.create_or_update_secret(path=Key_stream_ID, secret=dict(keys=keys),)
-						# update the number of available keys
-						cursor.execute("UPDATE " + str(prefs['module']['table']) + " SET currentKeyNo = %d WHERE handle = '%s'" % (len(keys), str(Key_stream_ID)))
-						# release vault lock
-						cursor.execute("UNLOCK TABLES")
-					except:
-						cursor.execute("UNLOCK TABLES")
-
-					newKey = False
-					while not newKey:
-						# wait for the other module to retrieve the same key
-						cursor.execute("SELECT * FROM " + str(prefs['module']['table']) + " WHERE handle = '%s'" % Key_stream_ID)
-						result = cursor.fetchone()
-						newKey = result[_NEWKEY]
-
-					# reset flag
-					cursor.execute("UPDATE " + str(prefs['module']['table']) + " SET newKey = False WHERE handle = '%s'" % str(Key_stream_ID))
-			# receiver code
-			else:
-				# wait until sender sends a key
-				newKey = False
-				while not newKey:
-					# wait for the other module to retrieve the same key
-					cursor.execute("SELECT * FROM " + str(prefs['module']['table']) + " WHERE handle = '%s'" % Key_stream_ID)
-					result = cursor.fetchone()
-					newKey = result[_NEWKEY]
-
-				# reset flag
-				cursor.execute("UPDATE " + str(prefs['module']['table']) + " SET newKey = False WHERE handle = '%s'" % str(Key_stream_ID))
-
-				# retrieve the just exchanged key
-				key, verified = core.exchangeKey(key_length, QKDdestination, timeout, prefs['module']['sender'])
-
-				# signal sender it can exchange a new key
-				x = requests.post('http://' + str(destination) + '/start', data=repr(Key_stream_ID))
-				# save the key in vault
-				if verified == True:
-					# convert the array of bits into an array of bytes as per QKD specifications (bit 0 is the first bit of the octect - ETSI GS QKD 004 v2.1.1 (2020-8), page 10, table 2)
-					key = convertToBytes(key, key_length)
-					# vault access must be synchronized with GET_KEY function - use DB lock for this purpose
-					cursor.execute("LOCK TABLES " + str(prefs['module']['table']) + " WRITE")
-					try:
-						client = hvac.Client(url='http://' + prefs['vault']['host'] + ':' + str(prefs['vault']['port']))
-						client.token = prefs['vault']['token']
-						try:
-							response = client.secrets.kv.read_secret_version(path=Key_stream_ID)
-							keys = response['data']['data']['keys']
-							keys.append([keyNo, str(key)])
-						except:
-							# if key handle does not exist in vault yet
-							keys = [[keyNo, str(key)]]
-						keyNo = keyNo + 1
-						client.secrets.kv.v2.create_or_update_secret(path=Key_stream_ID, secret=dict(keys=keys),)
-						# update the number of available keys
-						cursor.execute("UPDATE " + str(prefs['module']['table']) + " SET currentKeyNo = %d WHERE handle = '%s'" % (len(keys), str(Key_stream_ID)))
-						# release vault lock
-						cursor.execute("UNLOCK TABLES")
-					except:
-						cursor.execute("UNLOCK TABLES")
-			cursor.execute("SELECT * FROM " + str(prefs['module']['table']))
-			result = cursor.fetchone()
-			currentKno = result[_CURRENTKEYNO]
-			stop = result[_STOP]
-
-		# CLOSE has been called - clean DB before exit
-		cursor.execute("DELETE FROM " + str(prefs['module']['table']) + " WHERE handle = '%s'" % str(Key_stream_ID))
+				# CLOSE has been called - clean DB before exit
+				cursor.execute("DELETE FROM " + str(prefs['module']['table']) + " WHERE handle = '%s'" % str(Key_stream_ID))
+				break
+			except Exception as e:
+				pass
 
 def main():
 	global serverPort

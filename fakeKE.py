@@ -10,8 +10,6 @@ import multiprocessing
 from multiprocessing import Process
 import logging
 
-pref_file = open("configM.yaml", 'r')
-prefs = yaml.safe_load(pref_file)
 
 app = Flask(__name__)
 server = None
@@ -33,6 +31,8 @@ def run():
 
 @app.route('/sendRegister', methods=['POST'])
 def getQuantumKey():
+	pref_file = open("/usr/src/app/src/configM.yaml", 'r')
+	prefs = yaml.safe_load(pref_file)
 	key = eval(request.data)
 	requestIP = request.remote_addr
 	# retrieve information about this destination if any
@@ -57,6 +57,8 @@ def getQuantumKey():
 
 class fakeKE(QKD):
 	def exchangeKey(self, key_length, destination='http://localhost:4000', timeout=0, source=1, eve=False):
+		pref_file = open("/usr/src/app/src/configM.yaml", 'r')
+		prefs = yaml.safe_load(pref_file)
 		app.logger.info('Starting key exchange. Desired key length: %s' % str(key_length))
 		# sender source code
 		if source == 1:
