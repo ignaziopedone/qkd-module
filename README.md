@@ -46,7 +46,9 @@ Before starting the code, it is needed to manage the configuration phase, which 
 
 By opening _configM.yaml_ file it is possible to see different sections that need to be configured:
 
-- internal_db: This section contains the references to the mysql service needed by the QKD Module. All the related settings must be changed accordingly to your mysql settings (I guess the single fields are self-explainatory, but if you need a detailed description ask Dr. Pedone - he is available during night).
+> Note: if you plan to use QKD Module as a standalone module, you should fill all the settings in this file. If you plan to use QKD Module within a QKD Key Server, you can leave `internal_db` and `vault` section empty: the information to reach these services will be provided by the server.
+
+- internal_db: This section contains the references to the mysql service needed by the QKD Module. All the related settings must be changed accordingly to your mysql settings (I guess the single fields are self-explainatory, but if you need a detailed description ask Dr. Pedone - he is always available all night long).
 
 - vault: It contains IP address and port to access vault storage. It is also needed to indicate the root token to access the service. Refers to vault service configuration in [QKD Key Server](https://github.com/ignaziopedone/qkd-keyserver) repository's README for more information.
 
@@ -62,16 +64,28 @@ By opening _configM.yaml_ file it is possible to see different sections that nee
 	- private_key: this parameter (and the following) is part of the `SPHINCS+` asymmetric key pair used for authentication purpose on the classical channel. This parameter represents the private key of the pair.
 	- public_key: this is the `SPHINCS+` public key (see above).
 
+
+## Launch the code
+If you plan to use QKD Module within a QKD Key server, you should do nothing in this phase. Module is launched as a docker container within the docker-compose file of the server. Please refer to [QKD Key Server](https://github.com/ignaziopedone/qkd-keyserver) repository's README for more information.
+
+If you want to use QKD Module as a standalone module you can use this command to start the code:
+```
+python3 QKDModule.py <portNo>
+```
+Where `<portNo>` represents the port number the web server belonging to QKD Module will be listening to.
+
 ## API
 QKD Module is composed by a set of API defined by QKD standard _ETSI GS QKD 004 v2.1.1 (2020-8)_ implemented as REST API. The API are the following:
 
 - POST http://moduleIP/open_connect
+
 This function reserves an association (Key_stream_ID) between this module and a specified destination. Required parameter is an array containing the following values:
 	- `source` - the IP address of the source requiring the association (this parameter is required by the standard but it is unused).
 	- `destination` - the IP address of the QKD Module peer to exchange keys with.
 	- `qos` - the quality of service the two QKD modules must fulfil. The only parameters considered in this implementation are length (in bits) and timeout (in milliseconds)
 	- `Key_stream_ID` - unique handle to identify the stream ID. This parameter can be `None` and the module will generate and assigne a unique handle to the stream ID that it will going to generate, or it can be a stream ID retrieved from the peer high level application that has been returned from the peer QKD module calling the same function.
 The function will synchronize with the peer QKD Module to start the keys exchange and will return the assigned Key_stream_ID (the same passed as input if the parameter was not `NULL`) and a status variable that can take values `0` (SUCCESSFUL) or `2` (NO_QKD_CONNECTION_AVAILABLE).
+
 Example usage in python3 in which Key_stream_ID is `None`:
 ```
 import requests
@@ -84,8 +98,10 @@ if x.status_code == 200:
 ```
 
 - POST http://moduleIP/close
+
 Closes the association represented by Key_stream_ID and stops the key exchange. The already exchanged keys are however available to be retrieved.
 Required parameter is an array containing just one element: the Key_stream_ID.
+
 Example usage in python3:
 ```
 import requests
@@ -93,12 +109,14 @@ x = requests.post('http://127.0.0.1:5000/close', data=repr([Key_stream_ID]))
 ```
 
 - POST http://moduleIP/get_key
+
 This function can be used to retrieve a key belonging to the specified Key_stream_ID.
 Required parameter is an array containing the following values:
 	- `Key_stream_ID` - the same handle returned by OPEN_CONNECT method.
 	- `index` - a specific index in the stream. If `-1` the first available key in the stream will be returned.
 	- `Metadata` - a parameter required by the standard but currently unused.
 The function will return the requested key, the index of the key within the stream and a status variable that can take value `0` (SUCCESS), or `1` (INSUFFICIENT_KEY_AVAILABLE)
+
 Example usage in python3:
 ```
 import requests
@@ -111,14 +129,26 @@ if x.status_code == 200:
 ```
 
 - POST http://moduleIP/available_keys
+
 This function is NOT part of the ETSI standard. It has been designed to be used from QKD Key Server in order to get information about the number of currently available keys in the module. This information should be returned by the key server, but it has not been foreseen in the module in the current standard.
 The function returns an array with just one element representing the number of currently available keys.
-Exemple usage in python3:
+
+Example usage in python3:
 ```
 import requests
 x = requests.post('http://127.0.0.1:5000/available_keys')
 if x.status_code == 200:
 	availableKeys = int(eval(x.content)[0])
+```
+
+- POST http://moduleIP/attach_to_server
+
+This function is NOT part of the ETSI standard. It is used to start the registration procedure of a QKD Module to a specified QKD Key server. During the registration phase, the QKD Module will retrieve the information needed to use mysql DB and vault (IP address and keys to access the services). User must provided the IP address of the QKD Key server the module should connect with as body parameter. Status code returned by the function can be used to check whether registration went fine: `200` if everything is OK, `400` otherwise.
+
+Example usage in python3:
+```
+import requests
+ x = requests.post('http://127.0.0.1:5000/attach_to_server', data=repr('127.0.0.1:4000'))
 ```
 
 ### Synchronization API
