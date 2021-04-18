@@ -77,7 +77,7 @@ Where `<portNo>` represents the port number the web server belonging to QKD Modu
 ## API
 QKD Module is composed by a set of API defined by QKD standard _ETSI GS QKD 004 v2.1.1 (2020-8)_ implemented as REST API. The API are the following:
 
-- POST http://moduleIP/open_connect
+- POST http://moduleIP/api/v1/qkdm/actions/open_connect
 
 This function reserves an association (Key_stream_ID) between this module and a specified destination. Required parameter is an array containing the following values:
 	- `source` - the IP address of the source requiring the association (this parameter is required by the standard but it is unused).
@@ -90,14 +90,14 @@ Example usage in python3 in which Key_stream_ID is `None`:
 ```
 import requests
 qos = {'timeout' : 5000, 'length' : 128} 
-x = requests.post('http://127.0.0.1:5000/open_connect', data=repr([sourceAddress, moduleDestinationAddress, qos, None]))
+x = requests.post('http://127.0.0.1:5000/api/v1/qkdm/actions/open_connect', data=repr([sourceAddress, moduleDestinationAddress, qos, None]))
 if x.status_code == 200:
 	response = eval(x.content)
 	Key_stream_ID = response[0]
 	status = response[1]
 ```
 
-- POST http://moduleIP/close
+- POST http://moduleIP/api/v1/qkdm/actions/close
 
 Closes the association represented by Key_stream_ID and stops the key exchange. The already exchanged keys are however available to be retrieved.
 Required parameter is an array containing just one element: the Key_stream_ID.
@@ -105,10 +105,10 @@ Required parameter is an array containing just one element: the Key_stream_ID.
 Example usage in python3:
 ```
 import requests
-x = requests.post('http://127.0.0.1:5000/close', data=repr([Key_stream_ID]))
+x = requests.post('http://127.0.0.1:5000/api/v1/qkdm/actions/close', data=repr([Key_stream_ID]))
 ```
 
-- POST http://moduleIP/get_key
+- POST http://moduleIP/api/v1/qkdm/actions/get_key
 
 This function can be used to retrieve a key belonging to the specified Key_stream_ID.
 Required parameter is an array containing the following values:
@@ -120,7 +120,7 @@ The function will return the requested key, the index of the key within the stre
 Example usage in python3:
 ```
 import requests
-x = requests.post('http://127.0.0.1:5000/get_key', data=repr([Key_stream_ID, -1, None]))
+x = requests.post('http://127.0.0.1:5000/api/v1/qkdm/actions/get_key', data=repr([Key_stream_ID, -1, None]))
 if x.status_code == 200:
 	response = eval(x.content)
 	key = response[0]
@@ -128,7 +128,7 @@ if x.status_code == 200:
 	status = response[2]
 ```
 
-- POST http://moduleIP/available_keys
+- GET http://moduleIP/api/v1/qkdm/available_keys
 
 This function is NOT part of the ETSI standard. It has been designed to be used from QKD Key Server in order to get information about the number of currently available keys in the module. This information should be returned by the key server, but it has not been foreseen in the module in the current standard.
 The function returns an array with just one element representing the number of currently available keys.
@@ -136,7 +136,7 @@ The function returns an array with just one element representing the number of c
 Example usage in python3:
 ```
 import requests
-x = requests.post('http://127.0.0.1:5000/available_keys')
+x = requests.get('http://127.0.0.1:5000/api/v1/qkdm/available_keys')
 if x.status_code == 200:
 	availableKeys = int(eval(x.content)[0])
 ```

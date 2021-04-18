@@ -295,7 +295,7 @@ def start():
 '''
 Web server API
 '''
-@app.route('/open_connect', methods=['POST'])
+@app.route('/api/v1/qkdm/actions/open_connect', methods=['POST'])
 def OPEN_CONNECT():
 	try:
 		req_data = eval(request.data)
@@ -346,7 +346,7 @@ def OPEN_CONNECT():
 		return "Server error", 500
 
 
-@app.route('/close', methods=['POST'])
+@app.route('/api/v1/qkdm/actions/close', methods=['POST'])
 def CLOSE():
 	req_data = eval(request.data)
 	Key_stream_ID = req_data[0]
@@ -368,7 +368,7 @@ def CLOSE():
 
 
 
-@app.route('/get_key', methods=['POST'])
+@app.route('/api/v1/qkdm/actions/get_key', methods=['POST'])
 def GET_KEY():
 	req_data = eval(request.data)
 	Key_stream_ID = req_data[0]
@@ -427,9 +427,9 @@ def GET_KEY():
 		return repr([None, -1, status]), 400
 
 
-@app.route('/available_keys', methods=['POST'])
+@app.route('/api/v1/qkdm/available_keys', methods=['GET'])
 def AVAILABLE_KEYS():
-	req_data = eval(request.data)
+	handle = request.args.get('handle')
 	db = mysql.connector.connect(host=str(prefs['internal_db']['host']), port=str(prefs['internal_db']['port']), user=str(prefs['internal_db']['user']), passwd=str(prefs['internal_db']['passwd']), database=str(prefs['internal_db']['database']), autocommit=True)
 	cursor = db.cursor()
 	cursor.execute("SELECT * FROM " + str(prefs['module']['table']))
