@@ -87,7 +87,7 @@ def attachToServer() :
 def open_stream(): 
     content = request.get_json() 
     if (type(content) is dict) and ('key_stream_ID' in content):
-        qks_ip = str(content['key_stream_ID'])
+        key_stream_ID = str(content['key_stream_ID'])
         return "ok", 200
 
     value = {'message' : "bad request: request does not contains a valid json object"}
@@ -97,7 +97,7 @@ def open_stream():
 def close_stream(): 
     content = request.get_json() 
     if (type(content) is dict) and ('key_stream_ID' in content):
-        qks_ip = str(content['key_stream_ID'])
+        key_stream_ID = str(content['key_stream_ID'])
         return "ok", 200
 
     value = {'message' : "bad request: request does not contains a valid json object"}
@@ -107,7 +107,7 @@ def close_stream():
 def exchange(): 
     content = request.get_json() 
     if (type(content) is dict) and ('key_stream_ID' in content):
-        qks_ip = str(content['key_stream_ID'])
+        key_stream_ID = str(content['key_stream_ID'])
         return "ok", 200
 
     value = {'message' : "bad request: request does not contains a valid json object"}
