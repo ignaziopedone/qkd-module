@@ -1,29 +1,47 @@
 
 # SOUTHBOUND INTERFACE
-def OPEN_CONNECT(source, destination, key_stream_ID=None, qos=None): 
-    return 
+# TODO
+def OPEN_CONNECT(source:str, destination:str, key_stream_ID:str=None, qos=None) -> tuple: 
+    
+    key_stream_ID = 0
+    status = 0  
+    return status, key_stream_ID
 
-def CLOSE(key_stream_ID): 
-    return 
+# TODO
+def CLOSE(key_stream_ID:str) -> int: 
+    status = 0
+    return status
 
-def GET_KEY(key_stream_id, index=None, metadata=None): 
-    return 
+# TODO
+def GET_KEY(key_stream_ID:str, index:int=None, metadata=None) -> tuple: 
+    status = 0
+    index, key = "", ""
+    return (status, index, key)
 
-def GET_KEY_ID(key_stream_id, aggregate=False):
-    return 
+# TODO
+def GET_KEY_ID(key_stream_ID:str) -> tuple:
+    status = 0
+    list = []
+    return status, list 
 
-def CHECK_ID(key_stream_ID, indexes): 
-    return 
+# TODO
+def CHECK_ID(key_stream_ID:str, indexes:list) -> int: 
+    status = 0, 
+    return status 
 
-def attachToServer(qks_ip): 
-    return 
+# TODO
+def attachToServer(qks_ip:str) -> int: 
+    return 0
 
 # QKDM INTERFACE 
-def open_stream(key_stream_ID):
-    return 
+# TODO
+def open_stream(key_stream_ID:str) -> int:
+    return 0
 
-def close_stream(key_stream_ID):
-    return 
-
-def exchange(key_stream_ID):
-    return 
+# TODO
+def close_stream(key_stream_ID:str) -> int:
+    return 0
+    
+# TODO
+def exchange(key_stream_ID:str) -> int:
+    return 0
