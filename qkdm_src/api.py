@@ -45,3 +45,11 @@ def close_stream(key_stream_ID:str) -> int:
 # TODO
 def exchange(key_stream_ID:str) -> int:
     return 0
+
+
+def main():
+    # check everything
+    return
+
+if __name__ == "__main__":
+	main()

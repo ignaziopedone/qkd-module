@@ -152,3 +152,11 @@ def exchange():
 
     value = {'message' : "bad request: request does not contains a valid json object"}
     return value, 400
+
+
+def main():
+    # test port
+    return
+
+if __name__ == "__main__":
+	main()
