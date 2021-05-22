@@ -17,7 +17,8 @@ messages = {0: "successfull",
             6: "TIMEOUT_ERROR The call failed because the specified TIMEOUT",
             7: "OPEN failed because requested QoS settings could not be met", 
             8: "GET_KEY failed because metadata field size insufficient",
-            9: "Failed because KSID is not valid"}
+            9: "Failed because KSID is not valid",
+            10: "CHECK_ID failed because some ids are not available"}
 
 # SOUTHBOUND INTERFACE 
 @app.route(prefix+"/open_connect", methods=['POST'])
@@ -95,9 +96,6 @@ def get_key_id(key_stream_ID):
     return value, 400 
 
 
-    
-
-# TODO
 @app.route(prefix+"check_id", methods=['POST'])
 def check_id(): 
     content = request.get_json() 
@@ -105,28 +103,44 @@ def check_id():
         if (type(content['indexes']) is list): 
             key_stream_ID =  content['key_stream_ID']
             indexes = content['indexes']
-            # call function
-            return True, 200
+            
+            status = api.CHECK_ID(key_stream_ID, indexes)
+            value = {'status' : status, 'message' : messages[status]}
+            if status == 0: 
+                return value, 200
+            else: 
+                return value, 503
     value = {'message' : "bad request: request does not contains a valid json object"}
     return value, 400
 
-# TODO
 @app.route(prefix+"attach", methods=['POST'])
 def attachToServer() :
     content = request.get_json() 
     if (type(content) is dict) and ('qks_IP' in content):
         qks_ip = str(content['qks_IP'])
-        return "ok", 200
+        status = api.attachToServer(qks_ip)
+        value = {'status' : status, 'message' : messages[status]}
+        if status == 0: 
+            return value, 200
+        else: 
+            return value, 503
+
+    value = {'message' : "bad request: request does not contains a valid json object"}
+    return value, 400
 
 
 # QKDM INTERFACE
-# TODO
 @app.route(prefix+"open_stream", methods=['POST'])
 def open_stream(): 
     content = request.get_json() 
     if (type(content) is dict) and ('key_stream_ID' in content):
         key_stream_ID = str(content['key_stream_ID'])
-        return "ok", 200
+        status = api.open_stream(key_stream_ID)
+        value = {'status' : status, 'message' : messages[status]}
+        if status == 0: 
+            return value, 200
+        else: 
+            return value, 503
 
     value = {'message' : "bad request: request does not contains a valid json object"}
     return value, 400
@@ -137,7 +151,12 @@ def close_stream():
     content = request.get_json() 
     if (type(content) is dict) and ('key_stream_ID' in content):
         key_stream_ID = str(content['key_stream_ID'])
-        return "ok", 200
+        status = api.close_stream(key_stream_ID)
+        value = {'status' : status, 'message' : messages[status]}
+        if status == 0: 
+            return value, 200
+        else: 
+            return value, 503
 
     value = {'message' : "bad request: request does not contains a valid json object"}
     return value, 400
@@ -148,7 +167,12 @@ def exchange():
     content = request.get_json() 
     if (type(content) is dict) and ('key_stream_ID' in content):
         key_stream_ID = str(content['key_stream_ID'])
-        return "ok", 200
+        status = api.exchange(key_stream_ID)
+        value = {'status' : status, 'message' : messages[status]}
+        if status == 0: 
+            return value, 200
+        else: 
+            return value, 503
 
     value = {'message' : "bad request: request does not contains a valid json object"}
     return value, 400

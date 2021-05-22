@@ -1,3 +1,5 @@
+import requests
+#import QKD
 
 # SOUTHBOUND INTERFACE
 # TODO
