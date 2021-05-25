@@ -1,12 +1,12 @@
 from flask import request, Flask 
 import requests
 import api
-import json
-import sys 
+import argparse
 
 app = Flask(__name__)
 serverPort = 5000
 prefix = "/api/v1/qkdm/actions"
+
 
 messages = {0: "successfull",
             1: "Successful connection, but peer not connected",
@@ -18,7 +18,8 @@ messages = {0: "successfull",
             7: "OPEN failed because requested QoS settings could not be met", 
             8: "GET_KEY failed because metadata field size insufficient",
             9: "Failed because KSID is not valid", # Not in ETSI standard
-            10: "CHECK_ID failed because some ids are not available" } # Not in ETSI standard
+            10: "CHECK_ID failed because some ids are not available" , # Not in ETSI standard
+            11: "Error during QKDM or component initialization "} # Not in ETSI standard
 
 # SOUTHBOUND INTERFACE 
 @app.route(prefix+"/open_connect", methods=['POST'])
@@ -116,9 +117,11 @@ def check_id():
 @app.route(prefix+"attach", methods=['POST'])
 def attachToServer() :
     content = request.get_json() 
-    if (type(content) is dict) and ('qks_IP' in content):
-        qks_ip = str(content['qks_IP'])
-        status = api.attachToServer(qks_ip)
+    if (type(content) is dict) and ('qks_src_IP' in content) and ('qks_src_ID' in content) and ('qks_dest_ID' in content):
+        qks_src_ip = str(content['qks_src_IP'])
+        qks_src_id = str(content['qks_src_ID'])
+        qks_dest_id = str(content['qks_dest_ID'])
+        status = api.attachToServer(qks_src_ip, qks_src_id, qks_dest_id)
         value = {'status' : status, 'message' : messages[status]}
         if status == 0: 
             return value, 200
@@ -179,19 +182,27 @@ def exchange():
 def main():
     global app, serverPort
 
-    if (len(sys.argv) > 1) : 
-        try: 
-            serverPort = int(sys.argv[1])
-            if (serverPort < 0 or serverPort > 2**16 - 1):
-                raise Exception
-        except Exception: 
-            print("ERROR: use 'python3 appname <port>', port must be a valid port number")
+    parser = argparse.ArgumentParser(usage= '''
+    python file_name <port> <standalone> 
+    NOTE: python version >= 3.9 is required.  ''')
+    parser.add_argument('-port', type=int, help="defines the port number. If not specified Flask will listen on port 5000")
+    parser.add_argument('-server', type=str, choices=['true', 'false'], help="defines QKS presence. If not specified QKDM will run as standalone module, if specified as 'true' qkdm will require for an 'attach_to_server' request for configuration")
+    parser.add_argument('-reset', type=str, choices=['true', 'false'], help="forcethe reset of information received from a QKS registration")
+    args = parser.parse_args()
+    if args.port : 
+        serverPort = args.port 
+    server = True if args.server == 'true' else False 
+    reset = True if args.reset == 'true' else False 
+    res, message = api.init_module(server, reset)
 
-    res, message = api.init_module()
+    if res == -1  : 
+        print("ABORT: unable to init the module due to this error: \n", message )
+        return 
     print(message)
 
     app.run(host='0.0.0.0', port=serverPort)
     return
+
 
 if __name__ == "__main__":
 	main()
