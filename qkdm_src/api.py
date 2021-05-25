@@ -8,7 +8,7 @@ vaultClient = None
 
 # SOUTHBOUND INTERFACE
 # TODO
-def OPEN_CONNECT(source:str, destination:str, key_stream_ID:str=None, qos=None) -> tuple: 
+def OPEN_CONNECT(source:str, destination:str, key_stream_ID:str=None, qos=None) -> tuple[int, str]: 
     
     key_stream_ID = 0
     status = 0  
@@ -20,16 +20,16 @@ def CLOSE(key_stream_ID:str) -> int:
     return status
 
 # TODO
-def GET_KEY(key_stream_ID:str, index:int=None, metadata=None) -> tuple: 
+def GET_KEY(key_stream_ID:str, index:int=None, metadata=None) -> tuple[int, int, str]: 
     status = 0
     index, key = "", ""
     return (status, index, key)
 
 # TODO
-def GET_KEY_ID(key_stream_ID:str) -> tuple:
+def GET_KEY_ID(key_stream_ID:str) -> tuple[int, list]:
     status = 0
-    list = []
-    return status, list 
+    l = []
+    return status, l 
 
 # TODO
 def CHECK_ID(key_stream_ID:str, indexes:list) -> int: 
