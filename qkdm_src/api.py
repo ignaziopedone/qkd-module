@@ -1,5 +1,10 @@
 import requests
-#import QKD
+import qkd_device.QKD
+from uuid import uuid4
+import vaultClient
+import yaml
+
+vaultClient = None 
 
 # SOUTHBOUND INTERFACE
 # TODO
@@ -49,8 +54,14 @@ def exchange(key_stream_ID:str) -> int:
     return 0
 
 
+def init_module(vault_data : dict = None, db_data : dict = None) -> tuple[int, str]: 
+    # check from values
+    res = -1
+    message = "ERROR: not implemented yet"
+    return res, message
+
 def main():
-    # check everything
+    # check from config file 
     return
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ import json
 import sys 
 
 app = Flask(__name__)
-serverPort = 4000
+serverPort = 5000
 prefix = "/api/v1/qkdm/actions"
 
 messages = {0: "successfull",
@@ -17,8 +17,8 @@ messages = {0: "successfull",
             6: "TIMEOUT_ERROR The call failed because the specified TIMEOUT",
             7: "OPEN failed because requested QoS settings could not be met", 
             8: "GET_KEY failed because metadata field size insufficient",
-            9: "Failed because KSID is not valid",
-            10: "CHECK_ID failed because some ids are not available"}
+            9: "Failed because KSID is not valid", # Not in ETSI standard
+            10: "CHECK_ID failed because some ids are not available" } # Not in ETSI standard
 
 # SOUTHBOUND INTERFACE 
 @app.route(prefix+"/open_connect", methods=['POST'])
@@ -145,7 +145,6 @@ def open_stream():
     value = {'message' : "bad request: request does not contains a valid json object"}
     return value, 400
 
-# TODO
 @app.route(prefix+"close_stream", methods=['POST'])
 def close_stream(): 
     content = request.get_json() 
@@ -161,7 +160,6 @@ def close_stream():
     value = {'message' : "bad request: request does not contains a valid json object"}
     return value, 400
 
-# TODO
 @app.route(prefix+"exchange", methods=['POST'])
 def exchange(): 
     content = request.get_json() 
@@ -179,7 +177,20 @@ def exchange():
 
 
 def main():
-    # test port
+    global app, serverPort
+
+    if (len(sys.argv) > 1) : 
+        try: 
+            serverPort = int(sys.argv[1])
+            if (serverPort < 0 or serverPort > 2**16 - 1):
+                raise Exception
+        except Exception: 
+            print("ERROR: use 'python3 appname <port>', port must be a valid port number")
+
+    res, message = api.init_module()
+    print(message)
+
+    app.run(host='0.0.0.0', port=serverPort)
     return
 
 if __name__ == "__main__":
