@@ -1,11 +1,11 @@
-qks:
+qkdm:
   QKDM_ID: qkdm1
   MAX_KEY_COUNT: 100
   KEY_SIZE: 256
   protocol: fake 
   destination_QKS: qks2 
   destination_QKDM: qkdm2
-  registered: false 
+  init: false 
 
 mongo_db:
   host: 

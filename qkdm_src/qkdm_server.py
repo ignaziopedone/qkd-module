@@ -195,7 +195,7 @@ def main():
     reset = True if args.reset == 'true' else False 
     res, message = api.init_module(server, reset)
 
-    if res == -1  : 
+    if res == 11  : 
         print("ABORT: unable to init the module due to this error: \n", message )
         return 
     print(message)

@@ -46,15 +46,37 @@ def GET_KEY(key_stream_ID:str, index:int=None, metadata=None) -> tuple[int, int,
     index, key = "", ""
     return (status, index, key)
 
-# TODO
-def GET_KEY_ID(key_stream_ID:str) -> tuple[int, list]:
-    status = 0
-    l = []
-    return status, l 
 
-# TODO
+def GET_KEY_ID(key_stream_ID:str) -> tuple[int, list]:
+    global mongo_client
+    init = check_init() 
+    if init != 0: 
+        return 11
+        
+    if mongo_client is None:
+        mongo_client = MongoClient(f"mongodb://{mongodb['user']}:{mongodb['password']}@{mongodb['host']}:{mongodb['port']}/{mongodb['db']}?authSource={mongodb['auth_src']}")
+    stream_collection = mongo_client[mongodb['db']]['key_streams'] 
+
+    res = stream_collection.find_one({"_id" : key_stream_ID})
+    if res is not None: 
+        l = res['available_keys']
+        return 0, l 
+    else : 
+        return 9, []
+    
+
 def CHECK_ID(key_stream_ID:str, indexes:list) -> int: 
-    status = 0, 
+    global mongo_client
+    init = check_init() 
+    if init != 0: 
+        return 11
+
+    if mongo_client is None:
+        mongo_client = MongoClient(f"mongodb://{mongodb['user']}:{mongodb['password']}@{mongodb['host']}:{mongodb['port']}/{mongodb['db']}?authSource={mongodb['auth_src']}")
+    stream_collection = mongo_client[mongodb['db']]['key_streams'] 
+
+    res = stream_collection.find_one({"_id" : key_stream_ID, "available_keys" : {"$all" : indexes}})
+    status = 0 if res is not None else 10
     return status 
 
 # TODO
@@ -118,12 +140,12 @@ def register_data(vault_data : dict, db_data : dict) -> tuple[int, str]:
     config_file = open("qkdm_src/config.yaml", 'r+') 
     yaml.safe_dump(prefs, config_file, default_flow_style=False)
     config_file.close() 
-    return (1, "received data are valid")
+    return (0, "received data are valid")
 
 def check_init() -> int : # return 1 if everything is ok 
     global qkdm
     if qkdm['init'] is True:
-        return 1 
+        return 0 
      
     config_file = open("qkdm_src/config.yaml", 'r') 
     prefs = yaml.safe_load(config_file) 
@@ -131,10 +153,8 @@ def check_init() -> int : # return 1 if everything is ok
 
     qkdm['init'] = prefs['qkdm']['init']
     if not qkdm['init']: 
-        return -1 
+        return 1
     return init_module()[0]
-
-
 
 def init_module(server : bool = False , reset : bool = False ) -> tuple[int, str]:
     global vault, mongodb, vault_client, mongo_client, qkdm
@@ -161,14 +181,14 @@ def init_module(server : bool = False , reset : bool = False ) -> tuple[int, str
         vault_client = VaultClient(vault['host'], vault['port'], vault['token']) 
         if not vault_client.connect() :
             config_file.close()
-            return (-1, "ERROR: unable to connect to Vault")
+            return (11, "ERROR: unable to connect to Vault")
 
         try: 
             mongo_client = MongoClient(f"mongodb://{mongodb['user']}:{mongodb['password']}@{mongodb['host']}:{mongodb['port']}/{mongodb['db']}?authSource={mongodb['auth_src']}")
             mongo_client[mongo_db['db']].list_collection_names()
         except Exception: 
             config_file.close()
-            return (-1, "ERROR: unable to connect to MongoDB")
+            return (11, "ERROR: unable to connect to MongoDB")
 
         
         qkdm['init'] = True 
@@ -177,7 +197,7 @@ def init_module(server : bool = False , reset : bool = False ) -> tuple[int, str
         config_file.close()
 
         message =  "QKDM initialized as standalone component" if not server else "QKDM initialized with QKS data from previous registration"
-        return (1, message)
+        return (0, message)
     else: 
-        return (0, "QKDM is waiting for registration to a QKS")
+        return (1, "QKDM is waiting for registration to a QKS")
 
