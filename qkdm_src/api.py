@@ -1,7 +1,7 @@
 import requests
 import qkd_device.QKD
 from uuid import uuid4
-from vaultClient import Client as VaultClient 
+from vaultClient import VaultClient 
 from pymongo import MongoClient
 import yaml
 
