@@ -7,36 +7,79 @@ import yaml
 
 vault_client : VaultClient = None 
 mongo_client : MongoClient = None 
+supported_protocols = ["bb84", "fake"]
 
-mongodb = {}
-vault = {} 
-qks = {}
-
-
-config_file = open("qkdm_src/config.yaml", 'r') 
-prefs = yaml.safe_load(config_file) 
+config_file_name = "qkdm_src/config.yaml"
+config_file = open(config_file_name, 'r') 
+config = yaml.safe_load(config_file) 
 config_file.close() 
 
-qkdm = {
-    'id' : prefs['qkdm']['QKDM_ID'],
-    'ip' : prefs['qkdm']['QKDM_IP'],
-    'port' : prefs['qkdm']['QKDM_port'],
-    'max_key_count' : prefs['qkdm']['MAX_KEY_COUNT'],
-    'key_size' : prefs['qkdm']['KEY_SIZE'],
-    'protocol' :  prefs['qkdm']['protocol'],
-    'destination_QKDM' : prefs['qkdm']['destination_QKDM'],
-    'init' : prefs['qkdm']['init']
-}
-
-
+'''
+if config['qkdm']['protocol'] == "bb84":
+    from qkd_device.BB84 import BB84 as QKDCore 
+elif config['qkdm']['protocol'] == "fake":
+    from qkd_device.fakeKE import fakeKE as QKDCore
+'''
 
 # SOUTHBOUND INTERFACE
-# TODO
 def OPEN_CONNECT(source:str, destination:str, key_stream_ID:str=None, qos=None) -> tuple[int, str]: 
-    
-    key_stream_ID = 0
-    status = 0  
-    return status, key_stream_ID
+    global mongo_client, config
+    init = check_init() 
+    if init != 0: 
+        return (11, "")
+
+    key_streams_collection = mongo_client[config['mongo_db']['db']]['key_streams']
+    if key_stream_ID is not None: 
+        key_stream = key_streams_collection.find_one({"_id" : key_stream_ID}) 
+    else: 
+        key_stream = None 
+
+
+    if key_stream is None: # open new stream 
+        if key_stream_ID is None: 
+            key_stream_ID = str(uuid4()) 
+        
+        key_stream = {
+            "_id" : key_stream_ID, 
+            "available_keys" : [], 
+            "src_id" : source, 
+            "dest_id" : destination, 
+            "qos" : qos, 
+            "status" : "waiting"
+        }
+        
+        try: 
+            post_data = {
+                'key_stream_ID' : key_stream_ID,
+                'source' : source,
+                'destination' : destination
+            }
+            res = requests.post(f"http://{config['qkdm']['dest_IP']}:{config['qkdm']['dest_port']}/api/v1/qkdm/actions/open_stream", json=post_data)
+            if res.status_code == 200:
+                key_streams_collection.insert_one(key_stream)
+                return (0, key_stream_ID)
+            else: 
+                status = res.json()['status']
+                return (status, key_stream_ID)
+        except Exception: 
+            return (1, key_stream_ID)
+
+    else: # key_stream not none 
+        if key_stream['status'] == "waiting" and key_stream['src_id'] == source and key_stream['dest_id'] == destination: # ok 
+            try: 
+                post_data = {"key_stream_ID" : key_stream_ID}
+                res = requests.post(f"http://{config['qkdm']['dest_IP']}:{config['qkdm']['dest_port']}/api/v1/qkdm/actions/exchange", json=post_data)
+                if res.status_code == 200: 
+                    key_streams_collection.update_one({"_id" : key_stream_ID},{"$set" : {"status" : "exchanging", "qos" : qos}})
+                    return (0, key_stream_ID)
+                else: 
+                    status = res.json()['status']
+                    return (status, key_stream_ID)
+            except Exception: 
+                return (1, key_stream_ID)
+        else: # found a ksid in use 
+            return (5, key_stream_ID)
+ 
 
 # TODO
 def CLOSE(key_stream_ID:str) -> int: 
@@ -51,12 +94,12 @@ def GET_KEY(key_stream_ID:str, index:int=None, metadata=None) -> tuple[int, int,
 
 
 def GET_KEY_ID(key_stream_ID:str) -> tuple[int, list]:
-    global mongo_client
+    global mongo_client, config
     init = check_init() 
     if init != 0: 
         return 11
         
-    stream_collection = mongo_client[mongodb['db']]['key_streams'] 
+    stream_collection = mongo_client[config['mongo_db']['db']]['key_streams'] 
 
     res = stream_collection.find_one({"_id" : key_stream_ID})
     if res is not None: 
@@ -67,19 +110,19 @@ def GET_KEY_ID(key_stream_ID:str) -> tuple[int, list]:
     
 
 def CHECK_ID(key_stream_ID:str, indexes:list) -> int: 
-    global mongo_client
+    global mongo_client, config
     init = check_init() 
     if init != 0: 
         return 11
 
-    stream_collection = mongo_client[mongodb['db']]['key_streams'] 
+    stream_collection = mongo_client[config['mongo_db']['db']]['key_streams'] 
 
     res = stream_collection.find_one({"_id" : key_stream_ID, "available_keys" : {"$all" : indexes}})
     status = 0 if res is not None else 10
     return status 
 
 def attachToServer(qks_src_ip:str, qks_src_port:int, qks_src_id:str, qks_dest_id:str) -> int: 
-    global qkdm
+    global config
     if check_init() == 0: 
         return 12
     
@@ -91,9 +134,9 @@ def attachToServer(qks_src_ip:str, qks_src_port:int, qks_src_id:str, qks_dest_id
     }
 
     post_data = { 
-        'QKDM_ID' : qkdm['id'], 
-        'protocol' : qkdm['protocol'],
-        'QKDM_IP' : qkdm['ip'],
+        'QKDM_ID' : config['qkdm']['ID'], 
+        'protocol' : config['qkdm']['protocol'],
+        'QKDM_IP' : config['qkdm']['IP'],
         'QKDM_port' : 0, 
         'reachable_QKS' : "", 
         'reachable_QKDM' : "",
@@ -115,40 +158,70 @@ def attachToServer(qks_src_ip:str, qks_src_port:int, qks_src_id:str, qks_dest_id
     
 
 # QKDM INTERFACE 
-# TODO
-def open_stream(key_stream_ID:str) -> int:
-    return 0
+def open_stream(key_stream_ID:str, source:str, destination:str) -> int:
+    global mongo_client, config
+    init = check_init() 
+    if init != 0: 
+        return 11
+
+    key_streams_collection = mongo_client[config['mongo_db']['db']]['key_streams']
+    key_stream = key_streams_collection.find_one({"_id" : key_stream_ID}) 
+
+    if key_stream is None: 
+        key_stream = {
+            "_id" : key_stream_ID, 
+            "available_keys" : [], 
+            "src_id" : source, 
+            "dest_id" : destination, 
+            "qos" : None, 
+            "status" : "waiting"
+        } 
+
+        key_streams_collection.insert_one(key_stream)
+        return 0 
+    else: 
+        return 9 
+
 
 # TODO
 def close_stream(key_stream_ID:str) -> int:
     return 0
     
-# TODO
+
 def exchange(key_stream_ID:str) -> int:
-    return 0
+    global mongo_client, config
+    init = check_init() 
+    if init != 0: 
+        return 11
+
+    key_streams_collection = mongo_client[config['mongo_db']['db']]['key_streams']
+    key_stream = key_streams_collection.find_one({"_id" : key_stream_ID}) 
+
+    if key_stream is None: 
+        return 9 
+    else: 
+        key_streams_collection.update_one({"_id" : key_stream_ID}, {"$set" : {"status" : "exchanging"}})
+        # TODO: START QKDM CORE ON ANOTHER THREAD 
+        return 0
 
 # MANAGMENT FUNCTIONS 
 def register_data(vault_data : dict, db_data : dict, qks_data: dict) -> int:
-    global vault_client, vault, mongodb, qks
-
-    config_file = open("qkdm_src/config.yaml", 'r+') 
-    prefs = yaml.safe_load(config_file) 
+    global vault_client, config
     
     vault_client = VaultClient(vault_data['host'],vault_data['port'])
     res = vault_client.approle_login(vault_data['role_id'], vault_data['secret_id'])
     
     if not res: 
-        config_file.close()
         return 11
 
-    vault = {
+    config['vault'] = {
         'host' : vault_data['host'],
         'port' : vault_data['port'], 
         'token' : vault_client.client.token,
         'secret_engine' : vault_data['secret_engine']
     } 
 
-    mongodb = {
+    config['mongo_db'] = {
         'host' : db_data['host'],
         'port' : db_data['port'], 
         'user' : db_data['username'],
@@ -157,84 +230,61 @@ def register_data(vault_data : dict, db_data : dict, qks_data: dict) -> int:
         'db' : db_data['db_name']
     }
 
-    qks = {
+    config['qks'] = {
         'src_id' : qks_data['src_id'],
         'src_ip' : qks_data['src_ip'],
         'src_port' : qks_data['src_port'],
         'dest_id' :  qks_data['dest_id']
     }
 
-    prefs['mongo_db'] = mongodb
-    prefs['vault'] = vault
-    prefs['qks'] = qks
-
-    config_file.seek(0,0)
-    yaml.safe_dump(prefs, config_file, default_flow_style=False)
+    config_file = open(config_file_name, 'r+') 
+    yaml.safe_dump(config, config_file, default_flow_style=False)
     config_file.close() 
     return 0
 
 def check_init() -> int : # return 1 if everything is ok 
-    global qkdm
-    if qkdm['init'] is True:
+    global config
+    if config['qkdm']['init'] is True:
         return 0 
      
-    config_file = open("qkdm_src/config.yaml", 'r') 
+    config_file = open(config_file_name, 'r') 
     prefs = yaml.safe_load(config_file) 
     config_file.close() 
 
-    qkdm['init'] = prefs['qkdm']['init']
-    if not qkdm['init']: 
+    config['qkdm']['init'] = prefs['qkdm']['init']
+    if not config['qkdm']['init']: 
         return 1
     return init_module()[0]
 
 def init_module(server : bool = False , reset : bool = False ) -> tuple[int, str]:
-    global vault, mongodb, vault_client, mongo_client, qkdm, qks
+    global vault_client, mongo_client, config, supported_protocols
+
+    if config['qkdm']['protocol'] not in supported_protocols: 
+        return (4, "ERROR: UNSUPPORTED QKD PROTOCOL")
+
     if not server or (server and not reset): 
-        config_file = open("qkdm_src/config.yaml", 'r+') 
-        prefs = yaml.safe_load(config_file) 
-        
+        config_file = open(config_file_name, 'r+') 
+        config = yaml.safe_load(config_file) 
 
-        mongodb = {
-            'host' : prefs['mongo_db']['host'],
-            'port' : prefs['mongo_db']['port'], 
-            'user' : prefs['mongo_db']['user'],
-            'password' : prefs['mongo_db']['password'],
-            'auth_src' : prefs['mongo_db']['auth_src'],
-            'db' : prefs['mongo_db']['db']
-        }
+        if not server :
+            config.pop("qks", None)
 
-        vault = {
-            'host' : prefs['vault']['host'],
-            'port' : prefs['vault']['port'], 
-            'token' : prefs['vault']['token']
-        } 
-
-        if server and not reset :
-            qks = {
-                'src_id' : prefs['qks']['src_id'],
-                'src_ip' : prefs['qks']['src_ip'],
-                'src_port' : prefs['qks']['src_port'],
-                'dest_id' :  prefs['qks']['dest_id']
-            }
-
-
-        vault_client = VaultClient(vault['host'], vault['port'], vault['token']) 
+        vault_client = VaultClient(config['vault']['host'], config['vault']['port'], config['vault']['token']) 
         if not vault_client.connect() :
             config_file.close()
             return (11, "ERROR: unable to connect to Vault")
 
         try: 
-            mongo_client = MongoClient(f"mongodb://{mongodb['user']}:{mongodb['password']}@{mongodb['host']}:{mongodb['port']}/{mongodb['db']}?authSource={mongodb['auth_src']}")
-            mongo_client[mongodb['db']].list_collection_names()
+            mongo_client = MongoClient(f"mongodb://{config['mongo_db']['user']}:{config['mongo_db']['password']}@{config['mongo_db']['host']}:{config['mongo_db']['port']}/{config['mongo_db']['db']}?authSource={config['mongo_db']['auth_src']}")
+            mongo_client[config['mongo_db']['db']].list_collection_names()
         except Exception: 
             config_file.close()
             return (11, "ERROR: unable to connect to MongoDB")
 
         
-        qkdm['init'] = True 
-        prefs['qkdm']['init'] = True
+        config['qkdm']['init'] = True 
         config_file.seek(0, 0)
-        yaml.safe_dump(prefs, config_file, default_flow_style=False)
+        yaml.safe_dump(config, config_file, default_flow_style=False)
         config_file.close()
 
         message =  "QKDM initialized as standalone component" if not server else "QKDM initialized with QKS data from previous registration"

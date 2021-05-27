@@ -17,7 +17,7 @@ messages = {0: "successfull",
             6: "TIMEOUT_ERROR The call failed because the specified TIMEOUT",
             7: "OPEN failed because requested QoS settings could not be met", 
             8: "GET_KEY failed because metadata field size insufficient",
-            9: "Failed because KSID is not valid", # Not in ETSI standard
+            9: "Request failed because KSID not found", # Not in ETSI standard
             10: "CHECK_ID failed because some ids are not available" , # Not in ETSI standard
             11: "Error during QKDM or component initialization", # Not in ETSI standard
             12: "Module already initialized : restart it and force reset if you want to attatch to a new server", # Not in ETSI standard
@@ -33,6 +33,7 @@ def open_connect() :
         key_stream_ID = content['key_stream_ID'] if 'key_stream_ID' in content and type(content['key_stream_ID']) is str else None 
         qos_parameters = content['qos_parameters'] if 'qos_parameters' in content else None 
 
+        # TODO: CHECK THAT SOURCE == AUTH_SOURCE
         if source is not None and destination is not None: 
             status, key_stream_ID = api.OPEN_CONNECT(source, destination, key_stream_ID, qos_parameters)
             if status == 0: 
@@ -141,10 +142,12 @@ def attachToServer() :
 @app.route(prefix+"/open_stream", methods=['POST'])
 def open_stream(): 
     content = request.get_json() 
-    if (type(content) is dict) and ('key_stream_ID' in content):
-        key_stream_ID = content['key_stream_ID'] if type(content['key_stream_ID']) else None
-        if key_stream_ID is not None : 
-            status = api.open_stream(key_stream_ID)
+    if (type(content) is dict) and ('key_stream_ID' in content) and ('source' in content) and ('destination' in content):
+        key_stream_ID = content['key_stream_ID'] if type(content['key_stream_ID']) is str else None
+        source = content['source'] if type(content['source']) is str else None
+        destination = content['destination'] if type(content['destination']) is str else None
+        if  all (el is not None for el in [key_stream_ID, source, destination]) : 
+            status = api.open_stream(key_stream_ID, source, destination)
             value = {'status' : status, 'message' : messages[status]}
             if status == 0: 
                 return value, 200
@@ -201,12 +204,17 @@ def main():
         serverPort = args.port 
     server = True if args.server == 'true' else False 
     reset = True if args.reset == 'true' else False 
-    res, message = api.init_module(server, reset)
+    
+    try: 
+        res, message = api.init_module(server, reset)
 
-    if res == 11  : 
-        print("ABORT: unable to init the module due to this error: \n", message )
-        return 
-    print(message)
+        if res != 0 and res != 1  : 
+            print("ABORT: unable to init the module due to this error: \n", message )
+            return 
+        print(message)
+    except Exception: 
+        print("ABORT: unable to init the module due to an exception")
+        return
 
     app.run(host='0.0.0.0', port=serverPort)
     return
