@@ -104,28 +104,28 @@ def CLOSE(key_stream_ID:str) -> int:
         return 1
 
 
-def GET_KEY(key_stream_ID:str, indexes: list, metadata=None) -> tuple[int, dict]: 
+def GET_KEY(key_stream_ID:str, indexes: list, metadata=None) -> tuple[int, list, list]: 
     
     global mongo_client, config
     init = check_init() 
     if init != 0: 
-        return 11, {}
+        return (11, [], [])
 
     stream_collection = mongo_client[config['mongo_db']['db']]['key_streams'] 
     stream = stream_collection.find_one({"_id" : key_stream_ID})
     if stream is None: 
-        return (9, {})
+        return (9, [], [])
 
     res = stream_collection.find_one_and_update({"_id" : key_stream_ID, "available_keys" : {"$all" : indexes}}, {"$pull" : {"available_keys", indexes}})
-    keys = {}
+    keys = []
     if res is not None: 
         for index in indexes:
             path = key_stream_ID + index
             ret = vault_client.readAndRemove(mount=config['vault']['secret_engine'], path=path, id=index)
-            keys[index] = ret[index]
-        return (0, keys)
+            keys.append(ret[index])
+        return (0, indexes, keys)
     
-    return (2, {})
+    return (2, [], [])
             
 
 def GET_KEY_ID(key_stream_ID:str, count:int = -1) -> tuple[int, list]:

@@ -69,9 +69,9 @@ def get_key():
         index = int(content['index']) if 'index' in content else None 
         metadata = content['metadata'] if 'metadata' in content else None 
 
-        status, keys = api.GET_KEY(key_stream_ID, index, metadata) 
+        status, indexes, keys = api.GET_KEY(key_stream_ID, index, metadata) 
         if status == 0: 
-            value = {'status' : status, 'keys' : keys}
+            value = {'status' : status, 'indexes' : indexes, 'keys' : keys}
             return value, 200
         else :
             value = {'status' : status, 'message' : messages[status]}
@@ -84,8 +84,9 @@ def get_key():
 def get_key_id(key_stream_ID): 
     param = request.args.get('count') # n -> list[n:], -1 -> list[::], None -> len(list[::])
     key_stream_ID = str(key_stream_ID)
-    count = -1 if count is None else int(count)
-    if count == 'true' or count is None: 
+
+    try: 
+        count = -1 if count is None else int(count)
         status, index_list = api.GET_KEY_ID(key_stream_ID, count)
         if status == 0: 
             value = {'status' : status, 
@@ -95,8 +96,9 @@ def get_key_id(key_stream_ID):
             value = {'status' : status, 'message' : messages[status]}
             return value, 503
 
-    value = {'message' : "bad request: request does not contains a valid json object"}
-    return value, 400 
+    except Exception: 
+        value = {'message' : "bad request: request does not contains a valid argument"}
+        return value, 400 
 
 
 @app.route(prefix+"/check_id", methods=['POST'])
