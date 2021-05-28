@@ -81,10 +81,28 @@ def OPEN_CONNECT(source:str, destination:str, key_stream_ID:str=None, qos=None) 
             return (5, key_stream_ID)
  
 
-# TODO
 def CLOSE(key_stream_ID:str) -> int: 
-    status = 0
-    return status
+    global mongo_client, config
+    init = check_init() 
+    if init != 0: 
+        return 11
+
+    stream_collection = mongo_client[config['mongo_db']['db']]['key_streams'] 
+    stream = stream_collection.find_one({"_id" : key_stream_ID})
+    if stream is None: 
+        return 9
+    
+    try: 
+        data = {'key_stream_ID' : key_stream_ID}
+        res = requests.post(f"http://{config['qkdm']['dest_IP']}:{config['qkdm']['dest_port']}/api/v1/qkdm/actions/close_stream", json=data)
+        if res.status_code == 200: 
+            stream_collection.delete_one({"_id" : key_stream_ID})
+            return 0
+        else: 
+            return 9
+    except Exception: 
+        return 1
+
 
 # TODO
 def GET_KEY(key_stream_ID:str, index:int=None, metadata=None) -> tuple[int, int, str]: 
@@ -183,11 +201,19 @@ def open_stream(key_stream_ID:str, source:str, destination:str) -> int:
         return 9 
 
 
-# TODO
 def close_stream(key_stream_ID:str) -> int:
-    return 0
-    
+    global mongo_client, config
+    init = check_init() 
+    if init != 0: 
+        return 11
 
+    stream_collection = mongo_client[config['mongo_db']['db']]['key_streams'] 
+    res = stream_collection.delete_one({"_id" : key_stream_ID})
+    # if res.deleted_count == 1:  
+    return 0 # return ok even if the stream has already beed closed in this peer to keep consistency
+    
+    
+# TODO
 def exchange(key_stream_ID:str) -> int:
     global mongo_client, config
     init = check_init() 
