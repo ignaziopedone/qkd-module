@@ -69,9 +69,9 @@ def get_key():
         index = int(content['index']) if 'index' in content else None 
         metadata = content['metadata'] if 'metadata' in content else None 
 
-        status, index, key = api.GET_KEY(key_stream_ID, index, metadata) 
+        status, keys = api.GET_KEY(key_stream_ID, index, metadata) 
         if status == 0: 
-            value = {'status' : status, 'index' : index, 'key' : key}
+            value = {'status' : status, 'keys' : keys}
             return value, 200
         else :
             value = {'status' : status, 'message' : messages[status]}
@@ -82,13 +82,14 @@ def get_key():
 
 @app.route(prefix+"/get_id/<key_stream_ID>", methods=['GET'])
 def get_key_id(key_stream_ID): 
-    aggregate = request.args.get('aggregate')
+    param = request.args.get('count') # n -> list[n:], -1 -> list[::], None -> len(list[::])
     key_stream_ID = str(key_stream_ID)
-    if aggregate == 'true' or aggregate is None: 
-        status, index_list = api.GET_KEY_ID(key_stream_ID)
+    count = -1 if count is None else int(count)
+    if count == 'true' or count is None: 
+        status, index_list = api.GET_KEY_ID(key_stream_ID, count)
         if status == 0: 
             value = {'status' : status, 
-                'available_indexes' : len(index_list) if aggregate is not None else index_list}
+                'available_indexes' : len(index_list) if param == None else index_list}
             return value, 200
         else: 
             value = {'status' : status, 'message' : messages[status]}

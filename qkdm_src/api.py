@@ -2,7 +2,7 @@ import requests
 import qkd_device.QKD
 from uuid import uuid4
 from vaultClient import VaultClient 
-from pymongo import MongoClient
+from pymongo import MongoClient, ReturnDocument
 import yaml
 
 vault_client : VaultClient = None 
@@ -104,24 +104,42 @@ def CLOSE(key_stream_ID:str) -> int:
         return 1
 
 
-# TODO
-def GET_KEY(key_stream_ID:str, index:int=None, metadata=None) -> tuple[int, int, str]: 
-    status = 0
-    index, key = "", ""
-    return (status, index, key)
-
-
-def GET_KEY_ID(key_stream_ID:str) -> tuple[int, list]:
+def GET_KEY(key_stream_ID:str, indexes: list, metadata=None) -> tuple[int, dict]: 
+    
     global mongo_client, config
     init = check_init() 
     if init != 0: 
-        return 11
+        return 11, {}
+
+    stream_collection = mongo_client[config['mongo_db']['db']]['key_streams'] 
+    stream = stream_collection.find_one({"_id" : key_stream_ID})
+    if stream is None: 
+        return (9, {})
+
+    res = stream_collection.find_one_and_update({"_id" : key_stream_ID, "available_keys" : {"$all" : indexes}}, {"$pull" : {"available_keys", indexes}})
+    keys = {}
+    if res is not None: 
+        for index in indexes:
+            path = key_stream_ID + index
+            ret = vault_client.readAndRemove(mount=config['vault']['secret_engine'], path=path, id=index)
+            keys[index] = ret[index]
+        return (0, keys)
+    
+    return (2, {})
+            
+
+def GET_KEY_ID(key_stream_ID:str, count:int = -1) -> tuple[int, list]:
+    global mongo_client, config
+    init = check_init() 
+    if init != 0: 
+        return 11, []
         
     stream_collection = mongo_client[config['mongo_db']['db']]['key_streams'] 
 
     res = stream_collection.find_one({"_id" : key_stream_ID})
     if res is not None: 
-        l = res['available_keys']
+        c = count if count != -1 else len(res['available_keys'])
+        l = res['available_keys'][:c] 
         return 0, l 
     else : 
         return 9, []
