@@ -156,20 +156,6 @@ def open_stream():
         value = {'message' : "bad request: request does not contains a valid json object"}
         return value, 400
 
-@app.route(prefix+"/close_stream", methods=['POST'])
-def close_stream(): 
-    content = request.get_json() 
-    try:
-        key_stream_ID = str(content['key_stream_ID'])
-        status = api.close_stream(key_stream_ID)
-        value = {'status' : status, 'message' : messages[status]}
-        if status == 0: 
-            return value, 200
-        else: 
-            return value, 503
-    except Exception:
-        value = {'message' : "bad request: request does not contains a valid json object"}
-        return value, 400
 
 @app.route(prefix+"/exchange", methods=['POST'])
 def exchange(): 
