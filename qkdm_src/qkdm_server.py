@@ -66,12 +66,12 @@ def get_key():
     content = request.get_json() 
     try:
         key_stream_ID = str(content['key_stream_ID'] )
-        index = int(content['index']) if 'index' in content else None 
+        index = list(content['index']) 
         metadata = content['metadata'] if 'metadata' in content else None 
 
-        status, indexes, keys = api.GET_KEY(key_stream_ID, index, metadata) 
+        status, index, key = api.GET_KEY(key_stream_ID, index, metadata) 
         if status == 0: 
-            value = {'status' : status, 'indexes' : indexes, 'keys' : keys}
+            value = {'status' : status, 'index' : index, 'key' : key}
             return value, 200
         else :
             value = {'status' : status, 'message' : messages[status]}
@@ -84,9 +84,8 @@ def get_key():
 def get_key_id(key_stream_ID): 
     param = request.args.get('count') # n -> list[n:], -1 -> list[::], None -> len(list[::])
     key_stream_ID = str(key_stream_ID)
-
     try: 
-        count = -1 if count is None else int(count)
+        count = -1 if param is None else int(param)
         status, index_list = api.GET_KEY_ID(key_stream_ID, count)
         if status == 0: 
             value = {'status' : status, 
@@ -106,9 +105,9 @@ def check_id():
     content = request.get_json() 
     try:
         key_stream_ID =  str(content['key_stream_ID'])
-        indexes = list(content['indexes'])
+        index = list(content['index'])
         
-        status = api.CHECK_ID(key_stream_ID, indexes)
+        status = api.CHECK_ID(key_stream_ID, index)
         value = {'status' : status, 'message' : messages[status]}
         if status == 0: 
             return value, 200

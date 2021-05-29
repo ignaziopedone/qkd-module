@@ -2,26 +2,23 @@ mongo_db:
   auth_src: admin
   db: qkdm1
   host: localhost
-  password: 9e4f55fe2d3d4124aee7d0d29a6d1c6b
+  password: 91bd5a35f67a48bcb264c4049b960781
   port: 27017
   user: qkdm1
 qkdm:
+  ID: qkdm1
+  IP: 127.0.0.1
   KEY_SIZE: 256
   MAX_KEY_COUNT: 100
-  QKDM_ID: qkdm1
-  QKDM_IP: 127.0.0.1
-  QKDM_port: 5000
-  destination_QKDM: qkdm2
+  dest_ID: qkdm2
+  dest_IP: 127.0.0.1
+  dest_port: 5001
   init: true
+  port: 5000
   protocol: fake
-qks:
-  dest_id: qks2
-  src_id: qks1
-  src_ip: 127.0.0.1
-  src_port: 4000
 vault:
   host: localhost
   port: 8200
   secret_engine: qkdm1
-  token: s.IrYPy5CtJDuhaLetvpZlhon0
+  token: s.sYPZJFqxAnAP68fSaiESC2Ec
 

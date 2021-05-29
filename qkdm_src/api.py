@@ -106,7 +106,7 @@ def CLOSE(key_stream_ID:str) -> int:
 
 def GET_KEY(key_stream_ID:str, indexes: list, metadata=None) -> tuple[int, list, list]: 
     
-    global mongo_client, config
+    global mongo_client, vault_client, config
     init = check_init() 
     if init != 0: 
         return (11, [], [])
@@ -116,13 +116,13 @@ def GET_KEY(key_stream_ID:str, indexes: list, metadata=None) -> tuple[int, list,
     if stream is None: 
         return (9, [], [])
 
-    res = stream_collection.find_one_and_update({"_id" : key_stream_ID, "available_keys" : {"$all" : indexes}}, {"$pull" : {"available_keys", indexes}})
+    res = stream_collection.find_one_and_update({"_id" : key_stream_ID, "available_keys" : {"$all" : indexes}}, {"$pull" : {"available_keys" : {"$in" : indexes}}})
     keys = []
     if res is not None: 
         for index in indexes:
-            path = key_stream_ID + index
+            path = key_stream_ID + "/" + str(index)
             ret = vault_client.readAndRemove(mount=config['vault']['secret_engine'], path=path, id=index)
-            keys.append(ret[index])
+            keys.append(ret[str(index)])
         return (0, indexes, keys)
     
     return (2, [], [])
