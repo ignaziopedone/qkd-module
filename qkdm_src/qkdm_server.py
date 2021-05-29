@@ -66,12 +66,12 @@ def get_key():
     content = request.get_json() 
     try:
         key_stream_ID = str(content['key_stream_ID'] )
-        index = list(content['index']) 
+        indexes = list(content['indexes']) 
         metadata = content['metadata'] if 'metadata' in content else None 
 
-        status, index, key = api.GET_KEY(key_stream_ID, index, metadata) 
+        status, indexes, keys = api.GET_KEY(key_stream_ID, indexes, metadata) 
         if status == 0: 
-            value = {'status' : status, 'index' : index, 'key' : key}
+            value = {'status' : status, 'indexes' : indexes, 'keys' : keys}
             return value, 200
         else :
             value = {'status' : status, 'message' : messages[status]}
