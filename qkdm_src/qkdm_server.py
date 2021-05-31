@@ -179,17 +179,14 @@ def main():
     parser = argparse.ArgumentParser(usage= '''
     python file_name <port> <standalone> 
     NOTE: python version >= 3.9 is required.  ''')
-    parser.add_argument('-port', type=int, help="defines the port number. If not specified Flask will listen on port 5000")
     parser.add_argument('-server', type=str, choices=['true', 'false'], help="defines QKS presence. If not specified QKDM will run as standalone module, if specified as 'true' qkdm will require for an 'attach_to_server' request for configuration")
     parser.add_argument('-reset', type=str, choices=['true', 'false'], help="forcethe reset of information received from a QKS registration")
     args = parser.parse_args()
-    if args.port : 
-        serverPort = args.port 
     server = True if args.server == 'true' else False 
     reset = True if args.reset == 'true' else False 
     
     try: 
-        res, message = api.init_module(server, reset)
+        res, message, serverPort = api.init_module(server, reset)
 
         if res != 0 and res != 1  : 
             print("ABORT: unable to init the module due to this error: \n", message )
@@ -199,6 +196,7 @@ def main():
         print("ABORT: unable to init the module due to an exception")
         return
 
+    print("QKDM SERVER: starting on port", serverPort)
     app.run(host='0.0.0.0', port=serverPort)
     return
 

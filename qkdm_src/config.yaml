@@ -5,10 +5,14 @@ mongo_db:
   password: 91bd5a35f67a48bcb264c4049b960781
   port: 27017
   user: qkdm1
+qkd_device:
+  host: localhost
+  port: 6000
+  role: sender
 qkdm:
   ID: qkdm1
   IP: 127.0.0.1
-  KEY_SIZE: 256
+  KEY_SIZE: 128
   MAX_KEY_COUNT: 20
   dest_ID: qkdm2
   dest_IP: 127.0.0.1
@@ -16,14 +20,8 @@ qkdm:
   init: true
   port: 5000
   protocol: fake
-
 vault:
   host: localhost
   port: 8200
   secret_engine: qkdm1
   token: s.sYPZJFqxAnAP68fSaiESC2Ec
-qkd_device: 
-  host: localhost
-  port: 6000 
-  role : sender 
-
