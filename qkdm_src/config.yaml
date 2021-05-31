@@ -9,16 +9,21 @@ qkdm:
   ID: qkdm1
   IP: 127.0.0.1
   KEY_SIZE: 256
-  MAX_KEY_COUNT: 100
+  MAX_KEY_COUNT: 20
   dest_ID: qkdm2
   dest_IP: 127.0.0.1
   dest_port: 5001
   init: true
   port: 5000
   protocol: fake
+
 vault:
   host: localhost
   port: 8200
   secret_engine: qkdm1
   token: s.sYPZJFqxAnAP68fSaiESC2Ec
+qkd_device: 
+  host: localhost
+  port: 6000 
+  role : sender 
 

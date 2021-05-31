@@ -2,11 +2,15 @@ import abc
 
 class QKD(abc.ABC):
 	@abc.abstractmethod
-	def begin(self, serverPort):
+	def __init__(self, role:str, port:int, address:str, max_key_count:int, dimension:int) : 
+		pass 
+
+	@abc.abstractmethod
+	def begin(self) -> int:
 		pass
 
 	@abc.abstractmethod
-	def exchangeKey(self, key_length, key_id, destination, timeout, source, eve):
+	def exchangeKey(self) -> tuple[bytes, int]:
 		pass
 
 	@abc.abstractmethod

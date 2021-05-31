@@ -4,22 +4,24 @@ from uuid import uuid4
 from vaultClient import VaultClient 
 from pymongo import MongoClient, ReturnDocument
 import yaml
+from threading import Thread
+from random import getrandbits
 
 vault_client : VaultClient = None 
 mongo_client : MongoClient = None 
-supported_protocols = ["bb84", "fake"]
+supported_protocols = ["fake"]
 
 config_file_name = "qkdm_src/config.yaml"
 config_file = open(config_file_name, 'r') 
 config = yaml.safe_load(config_file) 
 config_file.close() 
 
-'''
-if config['qkdm']['protocol'] == "bb84":
-    from qkd_device.BB84 import BB84 as QKDCore 
-elif config['qkdm']['protocol'] == "fake":
+
+
+if config['qkdm']['protocol'] == "fake":
     from qkd_device.fakeKE import fakeKE as QKDCore
-'''
+qkd_device : QKDCore = None 
+
 
 # SOUTHBOUND INTERFACE
 def OPEN_CONNECT(source:str, destination:str, key_stream_ID:str=None, qos=None) -> tuple[int, str]: 
@@ -71,6 +73,7 @@ def OPEN_CONNECT(source:str, destination:str, key_stream_ID:str=None, qos=None) 
                 res = requests.post(f"http://{config['qkdm']['dest_IP']}:{config['qkdm']['dest_port']}/api/v1/qkdm/actions/exchange", json=post_data)
                 if res.status_code == 200: 
                     key_streams_collection.update_one({"_id" : key_stream_ID},{"$set" : {"status" : "exchanging", "qos" : qos}})
+                    ExchangerThread(key_stream_ID).start()
                     return (0, key_stream_ID)
                 else: 
                     status = res.json()['status']
@@ -211,7 +214,6 @@ def open_stream(key_stream_ID:str, source:str, destination:str) -> int:
     else: 
         return 9 
 
-# TODO
 def exchange(key_stream_ID:str) -> int:
     global mongo_client, config
     init = check_init() 
@@ -225,7 +227,7 @@ def exchange(key_stream_ID:str) -> int:
         return 9 
     else: 
         key_streams_collection.update_one({"_id" : key_stream_ID}, {"$set" : {"status" : "exchanging"}})
-        # TODO: START QKDM CORE ON ANOTHER THREAD 
+        ExchangerThread(key_stream_ID).start()
         return 0
 
 # MANAGMENT FUNCTIONS 
@@ -281,10 +283,16 @@ def check_init() -> int : # return 1 if everything is ok
     return init_module()[0]
 
 def init_module(server : bool = False , reset : bool = False ) -> tuple[int, str]:
-    global vault_client, mongo_client, config, supported_protocols
+    global vault_client, mongo_client, config, supported_protocols, qkd_device
 
     if config['qkdm']['protocol'] not in supported_protocols: 
-        return (4, "ERROR: UNSUPPORTED QKD PROTOCOL")
+        return (4, "ERROR: unsupported qkd protocol")
+
+
+    qkd_device = QKDCore(config['qkd_device']['role'], config['qkd_device']['port'], config['qkd_device']['host'], config['qkdm']['MAX_KEY_COUNT'])
+    if qkd_device.begin() != 0: 
+        return (4, "ERROR: unable to start qkd device") 
+
 
     if not server or (server and not reset): 
         config_file = open(config_file_name, 'r+') 
@@ -315,4 +323,44 @@ def init_module(server : bool = False , reset : bool = False ) -> tuple[int, str
         return (0, message)
     else: 
         return (1, "QKDM is waiting for registration to a QKS")
+
+class ExchangerThread(Thread) : 
+    def __init__(self, stream:str):
+        self.key_stream = key_stream 
+        Thread.__init__(self)
+
+    def run(self):
+        global config, qkd_device, vault_client, mongo_client  
+        qkd_device.begin() 
+
+        streams_collection = mongo_client[config['mongo_db']['db']]['key_streams']
+        
+        mount = config['vault']['secret_engine'] + self.key_stream
+        n = config['qkdm']['MAX_KEY_COUNT']
+
+        while True: 
+            stream = streams_collection.find_one({"_id" : self.key_stream})
+            if stream is None: 
+                break 
+
+            if len(stream['available_keys']) < n : 
+                id = getrandbits(32) 
+                key, stauts = qkd_device.exchangeKey()
+                
+                if status == 0: 
+                    data = {id : key}
+                    vault_client.writeOrUpdate(mount=mount, path=id, data=data) 
+
+                    res = streams_collection.update_one(({"_id" : streams_collection, f"available_keys.{n}" : {"$exist" : False}}), {"$push" : {"available_keys" : id}})
+                    if res.modified_count == 0: 
+                        vault_client.remove(mount, path) 
+            
+            
+
+
+        
+
+            
+        
+
 
