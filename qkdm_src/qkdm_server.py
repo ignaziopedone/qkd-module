@@ -105,9 +105,9 @@ def check_id():
     content = request.get_json() 
     try:
         key_stream_ID =  str(content['key_stream_ID'])
-        index = list(content['index'])
+        indexes = list(content['indexes'])
         
-        status = api.CHECK_ID(key_stream_ID, index)
+        status = api.CHECK_ID(key_stream_ID, indexes)
         value = {'status' : status, 'message' : messages[status]}
         if status == 0: 
             return value, 200
