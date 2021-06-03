@@ -6,13 +6,14 @@ from pymongo import MongoClient, ReturnDocument
 import yaml
 from threading import Thread
 from time import sleep
+from base64 import b64encode, b64decode
 
 
 vault_client : VaultClient = None 
 mongo_client : MongoClient = None 
 supported_protocols = ["fake"]
 
-config_file_name = "qkdm_src/config.yaml"
+config_file_name = "qkdm_src/config2.yaml"
 config_file = open(config_file_name, 'r') 
 config = yaml.safe_load(config_file) 
 config_file.close() 
@@ -314,7 +315,11 @@ def init_module(server : bool = False , reset : bool = False ) -> tuple[int, str
         except Exception: 
             return (11, "ERROR: unable to connect to MongoDB", -1)
 
-        
+        key_streams_collection = mongo_client[config['mongo_db']['db']]['key_streams']
+        key_streams = key_streams_collection.find({"status" : "exchanging"}) 
+        for ks in key_streams : 
+            ExchangerThread(ks['_id']).start()
+
         config['qkdm']['init'] = True 
         config_file = open(config_file_name, 'w') 
         yaml.safe_dump(config, config_file, default_flow_style=False)
@@ -348,7 +353,7 @@ class ExchangerThread(Thread) :
                 key, id, status = qkd_device.exchangeKey()
                 
                 if status == 0: 
-                    data = {str(id) : str(key)}
+                    data = {str(id) : b64encode(key).decode()} # bytearray saved as b64 string 
                     res_v = vault_client.writeOrUpdate(mount=mount, path=str(id), data=data) 
                     
                     res_m = streams_collection.update_one(({"_id" : self.key_stream, f"available_keys.{n}" : {"$exists" : False}}), {"$push" : {"available_keys" : id}})
