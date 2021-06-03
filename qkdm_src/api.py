@@ -12,7 +12,7 @@ vault_client : VaultClient = None
 mongo_client : MongoClient = None 
 supported_protocols = ["fake"]
 
-config_file_name = "qkdm_src/config2.yaml"
+config_file_name = "qkdm_src/config.yaml"
 config_file = open(config_file_name, 'r') 
 config = yaml.safe_load(config_file) 
 config_file.close() 
@@ -171,11 +171,11 @@ def attachToServer(qks_src_ip:str, qks_src_port:int, qks_src_id:str, qks_dest_id
         'QKDM_ID' : config['qkdm']['ID'], 
         'protocol' : config['qkdm']['protocol'],
         'QKDM_IP' : config['qkdm']['IP'],
-        'QKDM_port' : 0, 
-        'reachable_QKS' : "", 
-        'reachable_QKDM' : "",
-        'max_key_count' : 0, 
-        'key_size' : 0
+        'QKDM_port' : config['qkdm']['port'], 
+        'reachable_QKS' : qks_dest_id, 
+        'reachable_QKDM' : config['qkdm']['dest_ID'],
+        'max_key_count' : config['qkdm']['MAX_KEY_COUNT'], 
+        'key_size' : config['qkdm']['KEY_SIZE']
     }
 
     response = requests.post(f"http://{qks_src_ip}:{qks_src_port}/api/v1/qkdms", json=post_data)
@@ -290,10 +290,10 @@ def init_module(server : bool = False , reset : bool = False ) -> tuple[int, str
     if config['qkdm']['protocol'] not in supported_protocols: 
         return (4, "ERROR: unsupported qkd protocol", -1)
 
-
-    qkd_device = QKDCore(config['qkd_device']['role'], config['qkd_device']['port'], config['qkd_device']['host'], config['qkdm']['MAX_KEY_COUNT'])
-    if qkd_device.begin() != 0: 
-        return (4, "ERROR: unable to start qkd device", -1) 
+    if qkd_device is None: 
+        qkd_device = QKDCore(config['qkd_device']['role'], config['qkd_device']['port'], config['qkd_device']['host'], config['qkdm']['MAX_KEY_COUNT'])
+        if qkd_device.begin() != 0: 
+            return (4, "ERROR: unable to start qkd device", -1) 
 
 
     if not server or (server and not reset): 
@@ -353,7 +353,7 @@ class ExchangerThread(Thread) :
                     
                     res_m = streams_collection.update_one(({"_id" : self.key_stream, f"available_keys.{n}" : {"$exists" : False}}), {"$push" : {"available_keys" : id}})
                     if res_m.modified_count == 0: 
-                        vault_client.remove(mount, path) 
+                        vault_client.remove(mount, path=str(id)) 
 
             else: 
                 sleep(0.1)
