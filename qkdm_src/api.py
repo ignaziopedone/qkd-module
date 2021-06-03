@@ -86,20 +86,21 @@ def OPEN_CONNECT(source:str, destination:str, key_stream_ID:str=None, qos=None) 
  
 
 def CLOSE(key_stream_ID:str) -> int: 
-    global mongo_client, config
+    global mongo_client, vault_client, config
     init = check_init() 
     if init != 0: 
         return 11
 
-    stream_collection = mongo_client[config['mongo_db']['db']]['key_streams'] 
-    stream = stream_collection.find_one({"_id" : key_stream_ID})
-    if stream is None: 
+    streams_collection = mongo_client[config['mongo_db']['db']]['key_streams'] 
+    stream = streams_collection.find_one_and_delete({"_id" : key_stream_ID})
+    if stream is not None: 
+        mount = config['vault']['secret_engine'] + "/" + key_stream_ID
+        for key in stream['available_keys'] : 
+            vault_client.remove(mount, str(key))
+        return 0
+    else: 
         return 9
     
-
-    stream_collection.delete_one({"_id" : key_stream_ID})
-    return 0
-
 
 def GET_KEY(key_stream_ID:str, indexes: list, metadata=None) -> tuple[int, list, list]: 
     
