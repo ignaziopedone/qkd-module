@@ -13,7 +13,7 @@ vault_client : VaultClient = None
 mongo_client : MongoClient = None 
 supported_protocols = ["fake"]
 
-config_file_name = "qkdm_src/config2.yaml"
+config_file_name = "qkdm_src/config.yaml"
 config_file = open(config_file_name, 'r') 
 config = yaml.safe_load(config_file) 
 config_file.close() 
@@ -93,10 +93,10 @@ def CLOSE(key_stream_ID:str) -> int:
         return 11
 
     streams_collection = mongo_client[config['mongo_db']['db']]['key_streams'] 
-    stream = streams_collection.find_one_and_delete({"_id" : key_stream_ID})
-    if stream is not None: 
+    key_stream = streams_collection.find_one_and_delete({"_id" : key_stream_ID})
+    if key_stream is not None: 
         mount = config['vault']['secret_engine'] + "/" + key_stream_ID
-        for key in stream['available_keys'] : 
+        for key in key_stream['available_keys'] : 
             vault_client.remove(mount, str(key))
         return 0
     else: 
@@ -110,12 +110,12 @@ def GET_KEY(key_stream_ID:str, indexes: list, metadata=None) -> tuple[int, list,
     if init != 0: 
         return (11, [], [])
 
-    stream_collection = mongo_client[config['mongo_db']['db']]['key_streams'] 
-    stream = stream_collection.find_one({"_id" : key_stream_ID})
-    if stream is None: 
+    key_streams_collection = mongo_client[config['mongo_db']['db']]['key_streams'] 
+    key_stream = key_streams_collection.find_one({"_id" : key_stream_ID})
+    if key_stream is None: 
         return (9, [], [])
 
-    res = stream_collection.find_one_and_update({"_id" : key_stream_ID, "available_keys" : {"$all" : indexes}}, {"$pull" : {"available_keys" : {"$in" : indexes}}})
+    res = key_streams_collection.find_one_and_update({"_id" : key_stream_ID, "available_keys" : {"$all" : indexes}}, {"$pull" : {"available_keys" : {"$in" : indexes}}})
     keys = []
     if res is not None: 
         for index in indexes:
@@ -133,9 +133,9 @@ def GET_KEY_ID(key_stream_ID:str, count:int = -1) -> tuple[int, list]:
     if init != 0: 
         return 11, []
         
-    stream_collection = mongo_client[config['mongo_db']['db']]['key_streams'] 
+    key_streams_collection = mongo_client[config['mongo_db']['db']]['key_streams'] 
 
-    res = stream_collection.find_one({"_id" : key_stream_ID})
+    res = key_streams_collection.find_one({"_id" : key_stream_ID})
     if res is not None: 
         c = count if count != -1 else len(res['available_keys'])
         l = res['available_keys'][:c] 
@@ -150,9 +150,9 @@ def CHECK_ID(key_stream_ID:str, indexes:list) -> int:
     if init != 0: 
         return 11
 
-    stream_collection = mongo_client[config['mongo_db']['db']]['key_streams'] 
+    key_streams_collection = mongo_client[config['mongo_db']['db']]['key_streams'] 
 
-    res = stream_collection.find_one({"_id" : key_stream_ID, "available_keys" : {"$all" : indexes}})
+    res = key_streams_collection.find_one({"_id" : key_stream_ID, "available_keys" : {"$all" : indexes}})
     status = 0 if res is not None else 10
     return status 
 
@@ -169,14 +169,14 @@ def attachToServer(qks_src_ip:str, qks_src_port:int, qks_src_id:str, qks_dest_id
     }
 
     post_data = { 
-        'QKDM_ID' : config['qkdm']['ID'], 
+        'QKDM_ID' : config['qkdm']['id'], 
         'protocol' : config['qkdm']['protocol'],
-        'QKDM_IP' : config['qkdm']['IP'],
+        'QKDM_IP' : config['qkdm']['ip'],
         'QKDM_port' : config['qkdm']['port'], 
         'reachable_QKS' : qks_dest_id, 
         'reachable_QKDM' : config['qkdm']['dest_ID'],
-        'max_key_count' : config['qkdm']['MAX_KEY_COUNT'], 
-        'key_size' : config['qkdm']['KEY_SIZE']
+        'max_key_count' : config['qkdm']['max_key_count'], 
+        'key_size' : config['qkdm']['key_size']
     }
 
     response = requests.post(f"http://{qks_src_ip}:{qks_src_port}/api/v1/qkdms", json=post_data)
@@ -292,7 +292,7 @@ def init_module(server : bool = False , reset : bool = False ) -> tuple[int, str
         return (4, "ERROR: unsupported qkd protocol", -1)
 
     if qkd_device is None: 
-        qkd_device = QKDCore(config['qkd_device']['role'], config['qkd_device']['port'], config['qkd_device']['host'], config['qkdm']['MAX_KEY_COUNT'])
+        qkd_device = QKDCore(config['qkd_device']['role'], config['qkd_device']['port'], config['qkd_device']['host'], config['qkdm']['max_key_count'])
         if qkd_device.begin() != 0: 
             return (4, "ERROR: unable to start qkd device", -1) 
 
@@ -342,14 +342,14 @@ class ExchangerThread(Thread) :
         streams_collection = mongo_client[config['mongo_db']['db']]['key_streams']
         
         mount = config['vault']['secret_engine'] + "/" + self.key_stream
-        n = config['qkdm']['MAX_KEY_COUNT']
+        n = config['qkdm']['max_key_count']
 
         while True: 
-            stream = streams_collection.find_one({"_id" : self.key_stream})
-            if stream is None: 
+            key_stream = streams_collection.find_one({"_id" : self.key_stream})
+            if key_stream is None: 
                 break 
             
-            if len(stream['available_keys']) < n : 
+            if len(key_stream['available_keys']) < n : 
                 key, id, status = qkd_device.exchangeKey()
                 
                 if status == 0: 
