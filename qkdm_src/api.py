@@ -333,7 +333,7 @@ def init_module(server : bool = False , reset : bool = False ) -> tuple[int, str
 class ExchangerThread(Thread) : 
     def __init__(self, key_stream:str):
         self.key_stream = key_stream 
-        Thread.__init__(self)
+        Thread.__init__(self, daemon=True  )
 
     def run(self):
         global config, qkd_device, vault_client, mongo_client  
@@ -362,14 +362,3 @@ class ExchangerThread(Thread) :
 
             else: 
                 sleep(0.1)
-                
-            
-            
-
-
-        
-
-            
-        
-
-
