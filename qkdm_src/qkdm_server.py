@@ -1,9 +1,12 @@
-from flask import request, Flask 
-import requests
+from quart import request, Quart 
+import asyncio
 import api
 import argparse
 
-app = Flask(__name__)
+import nest_asyncio
+nest_asyncio.apply()
+
+app = Quart(__name__)
 serverPort = 5000
 prefix = "/api/v1/qkdm/actions"
 
@@ -25,8 +28,8 @@ messages = {0: "successfull",
 
 # SOUTHBOUND INTERFACE 
 @app.route(prefix+"/open_connect", methods=['POST'])
-def open_connect() :
-    content = request.get_json()
+async def open_connect() :
+    content = await request.get_json()
     try: 
         source = str(content['source'])
         destination = str(content['destination'])
@@ -35,7 +38,7 @@ def open_connect() :
 
         # TODO: CHECK THAT SOURCE == AUTH_SOURCE
 
-        status, key_stream_ID = api.OPEN_CONNECT(source, destination, key_stream_ID, qos_parameters)
+        status, key_stream_ID = await api.OPEN_CONNECT(source, destination, key_stream_ID, qos_parameters)
         if status == 0: 
             value = {'status' : status, 'key_stream_ID' : key_stream_ID}
             return value, 200
@@ -47,11 +50,11 @@ def open_connect() :
         return value, 400 
 
 @app.route(prefix+"/close", methods=['POST'])
-def close() : 
-    content = request.get_json()
+async def close() : 
+    content = await request.get_json()
     try: 
         key_stream_ID = str(content['key_stream_ID'] )
-        status = api.CLOSE(key_stream_ID)
+        status = await api.CLOSE(key_stream_ID)
         value = {'status' : status, 'message' : messages[status]}
         if status == 0:
             return value, 200
@@ -62,14 +65,14 @@ def close() :
         return value, 400 
 
 @app.route(prefix+"/get_key", methods=['POST'])
-def get_key(): 
-    content = request.get_json() 
+async def get_key(): 
+    content = await request.get_json() 
     try:
         key_stream_ID = str(content['key_stream_ID'] )
         indexes = list(content['indexes']) 
         metadata = content['metadata'] if 'metadata' in content else None 
 
-        status, indexes, keys = api.GET_KEY(key_stream_ID, indexes, metadata) 
+        status, indexes, keys = await api.GET_KEY(key_stream_ID, indexes, metadata) 
         if status == 0: 
             value = {'status' : status, 'indexes' : indexes, 'keys' : keys}
             return value, 200
@@ -81,12 +84,12 @@ def get_key():
         return value, 400 
 
 @app.route(prefix+"/get_id/<key_stream_ID>", methods=['GET'])
-def get_key_id(key_stream_ID): 
+async def get_key_id(key_stream_ID): 
     param = request.args.get('count') # n -> list[n:], -1 -> list[::], None -> len(list[::])
     key_stream_ID = str(key_stream_ID)
     try: 
         count = -1 if param is None else int(param)
-        status, index_list = api.GET_KEY_ID(key_stream_ID, count)
+        status, index_list = await api.GET_KEY_ID(key_stream_ID, count)
         if status == 0: 
             value = {'status' : status, 
                 'available_indexes' : len(index_list) if param == None else index_list}
@@ -101,13 +104,13 @@ def get_key_id(key_stream_ID):
 
 
 @app.route(prefix+"/check_id", methods=['POST'])
-def check_id(): 
-    content = request.get_json() 
+async def check_id(): 
+    content = await request.get_json() 
     try:
         key_stream_ID =  str(content['key_stream_ID'])
         indexes = list(content['indexes'])
         
-        status = api.CHECK_ID(key_stream_ID, indexes)
+        status = await api.CHECK_ID(key_stream_ID, indexes)
         value = {'status' : status, 'message' : messages[status]}
         if status == 0: 
             return value, 200
@@ -119,15 +122,15 @@ def check_id():
         return value, 400
 
 @app.route(prefix+"/attach", methods=['POST'])
-def attachToServer() :
-    content = request.get_json() 
+async def attachToServer() :
+    content = await request.get_json() 
     try:
         qks_src_ip = str(content['qks_src_IP']) 
         qks_src_port = int(content['qks_src_port']) 
         qks_src_id = str(content['qks_src_ID']) 
         qks_dest_id = str(content['qks_dest_ID']) 
 
-        status = api.attachToServer(qks_src_ip, qks_src_port, qks_src_id, qks_dest_id)
+        status = await api.attachToServer(qks_src_ip, qks_src_port, qks_src_id, qks_dest_id)
         value = {'status' : status, 'message' : messages[status]}
         if status == 0: 
             return value, 200
@@ -140,13 +143,13 @@ def attachToServer() :
 
 # QKDM INTERFACE
 @app.route(prefix+"/open_stream", methods=['POST'])
-def open_stream(): 
-    content = request.get_json() 
+async def open_stream(): 
+    content = await request.get_json() 
     try:
         key_stream_ID = str(content['key_stream_ID']) 
         source = str(content['source'])
         destination = str(content['destination'])
-        status = api.open_stream(key_stream_ID, source, destination)
+        status = await api.open_stream(key_stream_ID, source, destination)
         value = {'status' : status, 'message' : messages[status]}
         if status == 0: 
             return value, 200
@@ -158,11 +161,11 @@ def open_stream():
 
 
 @app.route(prefix+"/exchange", methods=['POST'])
-def exchange(): 
-    content = request.get_json() 
+async def exchange(): 
+    content = await request.get_json() 
     try:    
         key_stream_ID = str(content['key_stream_ID'] )
-        status = api.exchange(key_stream_ID)
+        status = await api.exchange(key_stream_ID)
         value = {'status' : status, 'message' : messages[status]}
         if status == 0: 
             return value, 200
@@ -173,7 +176,7 @@ def exchange():
         return value, 400
 
 
-def main():
+async def main():
     global app, serverPort
 
     parser = argparse.ArgumentParser(usage= '''
@@ -183,23 +186,23 @@ def main():
     parser.add_argument('-reset', type=str, choices=['true', 'false'], help="forcethe reset of information received from a QKS registration")
     args = parser.parse_args()
     server = True if args.server == 'true' else False 
-    reset = True if args.reset == 'true' else False 
+    reset = True #if args.reset == 'true' else False 
     
-    try: 
-        res, message, serverPort = api.init_module(server, reset)
+    #try: 
+    res, message, serverPort = await api.init_module(server, reset)
 
-        if res != 0 and res != 1  : 
-            print("ABORT: unable to init the module due to this error: \n", message )
-            return 
-        print(message)
-    except Exception: 
-        print("ABORT: unable to init the module due to an exception")
-        return
+    if res != 0 and res != 1  : 
+        print("ABORT: unable to init the module due to this error: \n", message )
+        return 
+    print(message)
+    #except Exception: 
+    #    print("ABORT: unable to init the module due to an exception")
+    #    return
 
     print("QKDM SERVER: starting on port", serverPort)
-    app.run(host='0.0.0.0', port=serverPort)
-    return
+    app.run(host='0.0.0.0', port=serverPort, loop = asyncio.get_event_loop())
+
 
 
 if __name__ == "__main__":
-	main()
+	asyncio.run(main())
