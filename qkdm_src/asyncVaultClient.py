@@ -61,9 +61,9 @@ class VaultClient() :
         except Exception: 
             return False 
 
-    async def writeOrUpdate(self, mount:str, path:str, key:str, val:str) -> bool: 
+    async def writeOrUpdate(self, mount:str, path:str, **data) -> bool: 
         try: 
-            answer = await self.client.write(mount_point=mount+path, key=val)
+            answer = await self.client.write(mount + "/" + path, **data)
             return True
         except Exception: 
             return False
@@ -71,10 +71,10 @@ class VaultClient() :
         
     async def readAndRemove(self, mount:str, path:str) -> dict: 
         try: 
-            data = await self.client.read(path=mount+path)
+            data = await self.client.read(path=mount + "/" + path)
             ret = data['data']
  
-            await self.client.delete(path = mount+path)
+            await self.client.delete(path = mount + "/" + path)
             return ret
 
         except Exception: 
@@ -82,10 +82,21 @@ class VaultClient() :
 
     async def remove(self, mount:str, path:str) -> bool: 
         try:  
-            await self.client.delete(path = mount+path)
+            await self.client.delete(path = mount + "/" + path)
             return True
         except Exception: 
             return False 
+
+    async def read(self, mount:str, path:str) -> dict: 
+        try: 
+            data = await self.client.read(path=mount + "/" + path)
+            ret = data['data']
+            return ret
+
+        except Exception: 
+            return None 
+
+    
     
     async def createUser(self, id:str) -> dict: 
         auth_methods = await self.client.list_auth_beckends()['data'].keys()

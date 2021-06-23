@@ -129,7 +129,7 @@ async def GET_KEY(key_stream_ID:str, indexes: list, metadata=None) -> tuple[int,
     if res is not None: 
         for index in indexes:
             path = key_stream_ID + "/" + str(index)
-            ret = await vault_client.readAndRemove(mount=config['vault']['secret_engine'], path=path, id=index)
+            ret = await vault_client.readAndRemove(mount=config['vault']['secret_engine'], path=path)
             keys.append(ret[str(index)])
         return (0, indexes, keys)
     
@@ -365,7 +365,7 @@ class ExchangerThread(Thread) :
                 
                 if status == 0: 
                     data = {str(id) : b64encode(key).decode()} # bytearray saved as b64 string 
-                    res_v = await vault_client.writeOrUpdate(mount=mount, path=str(id), data=data) 
+                    res_v = await vault_client.writeOrUpdate(mount=mount, path=str(id), **data) 
                     
                     res_m = await streams_collection.update_one(({"_id" : self.key_stream, f"available_keys.{n}" : {"$exists" : False}}), {"$push" : {"available_keys" : id}})
                     if res_m.modified_count == 0: 
