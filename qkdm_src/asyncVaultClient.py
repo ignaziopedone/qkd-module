@@ -61,7 +61,7 @@ class VaultClient() :
         except Exception: 
             return False 
 
-    async def writeOrUpdate(self, mount:str, path:str, **data) -> bool: 
+    async def writeOrUpdate(self, mount:str, path:str, data:dict) -> bool: 
         try: 
             answer = await self.client.write(mount + "/" + path, **data)
             return True
