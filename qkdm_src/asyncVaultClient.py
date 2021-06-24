@@ -9,10 +9,10 @@ class VaultClient() :
         self.client.token = token
         self.keys = keys
 
+
     async def initialize(self, shares:int, threshold:int) -> bool: 
         if not (await self.client.is_initialized()):
             result = await self.client.initialize(shares, threshold)
-            print(result)
             self.client.token = result['root_token']
             self.keys = result['keys']  
             return await self.client.is_initialized() 
@@ -42,9 +42,9 @@ class VaultClient() :
 
     async def approle_login(self, role_id:str, secret_id:str) -> bool: 
         try: 
-            await self.client.auth_approle(role_id, secret_id) 
+            r = await self.client.auth_approle(role_id, secret_id) 
             return True
-        except Exception: 
+        except Exception as e: 
             return False
 
     async def createEngine(self, path:str) -> bool: 
@@ -65,7 +65,7 @@ class VaultClient() :
         try: 
             answer = await self.client.write(mount + "/" + path, **data)
             return True
-        except Exception: 
+        except Exception as e : 
             return False
 
         
@@ -99,7 +99,8 @@ class VaultClient() :
     
     
     async def createUser(self, id:str) -> dict: 
-        auth_methods = await self.client.list_auth_beckends()['data'].keys()
+        res = await self.client.list_auth_backends()
+        auth_methods = res['data'].keys()
         if 'approle/' not in auth_methods: 
             await self.client.enable_auth_backend('approle')
 
@@ -111,16 +112,16 @@ class VaultClient() :
             }""" % id
         
         if res : 
-            try: 
-                await self.client.set_policy(name=id, policy=policy)
-                await self.client.create_role(role_name=id, token_policies=[id], token_type='service')
 
-                response = {}
-                response["role_id"] = await self.client.get_role_id(role_name=id)["data"]["role_id"]
-                response["secret_id"] = await self.client.create_role_secret_id(role_name=id)["data"]["secret_id"]
-                return response
-            except Exception: 
-                return None
+            await self.client.set_policy(name=id, rules=policy)
+            await self.client.create_role(role_name=id, token_policies=[id], token_type='service', mount_point="approle")
+
+            response = {}
+            response["role_id"] = await self.client.get_role_id(role_name=id)
+            r = await self.client.create_role_secret_id(role_name=id)
+            response["secret_id"] = r['data']['secret_id']
+            return response
+
         else : 
             return None
 
@@ -131,3 +132,6 @@ class VaultClient() :
             return res 
         except Exception : 
             return False
+
+    async def close(self) -> bool : 
+        await self.client.close()
