@@ -221,7 +221,7 @@ async def open_stream(key_stream_ID:str, source:str, destination:str) -> int:
             "status" : "waiting"
         } 
 
-        res = await key_streams_collection.insert_one(key_stream)
+        await key_streams_collection.insert_one(key_stream)
         return 0 
     else: 
         return 9 
@@ -238,7 +238,7 @@ async def exchange(key_stream_ID:str) -> int:
     if key_stream is None: 
         return 9 
     else: 
-        res = await key_streams_collection.update_one({"_id" : key_stream_ID}, {"$set" : {"status" : "exchanging"}})
+        await key_streams_collection.update_one({"_id" : key_stream_ID}, {"$set" : {"status" : "exchanging"}})
         ExchangerThread(key_stream_ID).start()
         return 0
 
@@ -365,7 +365,7 @@ class ExchangerThread(Thread) :
                 
                 if status == 0: 
                     data = {str(id) : b64encode(key).decode()} # bytearray saved as b64 string 
-                    res_v = await vault_client.writeOrUpdate(mount=mount, path=str(id), date=data) 
+                    await vault_client.writeOrUpdate(mount=mount, path=str(id), data=data) 
                     
                     res_m = await streams_collection.update_one(({"_id" : self.key_stream, f"available_keys.{n}" : {"$exists" : False}}), {"$push" : {"available_keys" : id}})
                     if res_m.modified_count == 0: 

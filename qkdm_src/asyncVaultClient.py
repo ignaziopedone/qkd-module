@@ -44,7 +44,7 @@ class VaultClient() :
         try: 
             r = await self.client.auth_approle(role_id, secret_id) 
             return True
-        except Exception as e: 
+        except Exception: 
             return False
 
     async def createEngine(self, path:str) -> bool: 
@@ -65,7 +65,7 @@ class VaultClient() :
         try: 
             answer = await self.client.write(mount + "/" + path, **data)
             return True
-        except Exception as e : 
+        except Exception: 
             return False
 
         
