@@ -14,7 +14,7 @@ class VaultClient() :
         if not (await self.client.is_initialized()):
             result = await self.client.initialize(shares, threshold)
             self.client.token = result['root_token']
-            self.keys = result['keys']  
+            self.keys = result['keys_base64']  
             return await self.client.is_initialized() 
         return True
 
@@ -44,7 +44,7 @@ class VaultClient() :
         try: 
             r = await self.client.auth_approle(role_id, secret_id) 
             return True
-        except Exception: 
+        except Exception as e: 
             return False
 
     async def createEngine(self, path:str) -> bool: 
@@ -65,7 +65,7 @@ class VaultClient() :
         try: 
             answer = await self.client.write(mount + "/" + path, **data)
             return True
-        except Exception: 
+        except Exception as e : 
             return False
 
         
