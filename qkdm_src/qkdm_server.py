@@ -185,8 +185,8 @@ async def main():
     parser.add_argument('-server', type=str, choices=['true', 'false'], help="defines QKS presence. If not specified QKDM will run as standalone module, if specified as 'true' qkdm will require for an 'attach_to_server' request for configuration")
     parser.add_argument('-reset', type=str, choices=['true', 'false'], help="forcethe reset of information received from a QKS registration")
     args = parser.parse_args()
-    server = True if args.server == 'true' else False 
-    reset = True if args.reset == 'true' else False 
+    server = True #if args.server == 'true' else False 
+    reset = True #if args.reset == 'true' else False 
     
     try: 
         res, message, serverPort = await api.init_module(server, reset)

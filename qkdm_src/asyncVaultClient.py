@@ -8,6 +8,9 @@ class VaultClient() :
             self.client = hvac.AsyncClient(url='http://'+address+":"+str(port))
         self.client.token = token
         self.keys = keys
+    
+    def __del__ (self): 
+        self.client.close() 
 
 
     async def initialize(self, shares:int, threshold:int) -> bool: 
