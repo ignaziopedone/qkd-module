@@ -186,18 +186,18 @@ async def main():
     parser.add_argument('-reset', type=str, choices=['true', 'false'], help="forcethe reset of information received from a QKS registration")
     args = parser.parse_args()
     server = True if args.server == 'true' else False 
-    reset = True #if args.reset == 'true' else False 
+    reset = True if args.reset == 'true' else False 
     
-    #try: 
-    res, message, serverPort = await api.init_module(server, reset)
+    try: 
+        res, message, serverPort = await api.init_module(server, reset)
 
-    if res != 0 and res != 1  : 
-        print("ABORT: unable to init the module due to this error: \n", message )
-        return 
-    print(message)
-    #except Exception: 
-    #    print("ABORT: unable to init the module due to an exception")
-    #    return
+        if res != 0 and res != 1  : 
+            print("ABORT: unable to init the module due to this error: \n", message )
+            return 
+        print(message)
+    except Exception: 
+        print("ABORT: unable to init the module due to an exception")
+        return
 
     print("QKDM SERVER: starting on port", serverPort)
     app.run(host='0.0.0.0', port=serverPort, loop = asyncio.get_event_loop())
