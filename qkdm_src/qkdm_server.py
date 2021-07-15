@@ -184,12 +184,14 @@ async def main():
     NOTE: python version >= 3.9 is required.  ''')
     parser.add_argument('-server', type=str, choices=['true', 'false'], help="defines QKS presence. If not specified QKDM will run as standalone module, if specified as 'true' qkdm will require for an 'attach_to_server' request for configuration")
     parser.add_argument('-reset', type=str, choices=['true', 'false'], help="forcethe reset of information received from a QKS registration")
+    parser.add_argument('-config', type=str, help="name of the custom config file", default=None)
     args = parser.parse_args()
     server = True #if args.server == 'true' else False 
     reset = True #if args.reset == 'true' else False 
-    
+    config_file = args.config 
+
     try: 
-        res, message, serverPort = await api.init_module(server, reset)
+        res, message, serverPort = await api.init_module(server, reset, config_file)
 
         if res != 0 and res != 1  : 
             print("ABORT: unable to init the module due to this error: \n", message )

@@ -16,13 +16,8 @@ vault_client : VaultClient = None
 mongo_client : MongoClient = None 
 supported_protocols = ["fake"]
 http_client : aiohttp.ClientSession = None
-
-
-config_file_name = "qkdm_src/config2.yaml"
-config_file = open(config_file_name, 'r') 
-config = yaml.safe_load(config_file) 
-config_file.close() 
-
+config : dict = {} 
+config_file_name = "qkdm_src/config.yaml"
 
 
 if config['qkdm']['protocol'] == "fake":
@@ -294,8 +289,8 @@ async def check_init() -> int : # return 1 if everything is ok
         return 1
     return await init_module()[0]
 
-async def init_module(server : bool = False , reset : bool = False ) -> tuple[int, str, int]:
-    global vault_client, mongo_client, config, supported_protocols, qkd_device, http_client
+async def init_module(server : bool = False , reset : bool = False, custom_config_file : str = None ) -> tuple[int, str, int]:
+    global vault_client, mongo_client, config, supported_protocols, qkd_device, http_client, config_file_name
 
     if config['qkdm']['protocol'] not in supported_protocols: 
         return (4, "ERROR: unsupported qkd protocol", -1)
@@ -306,6 +301,8 @@ async def init_module(server : bool = False , reset : bool = False ) -> tuple[in
             return (4, "ERROR: unable to start qkd device", -1) 
 
     http_client = aiohttp.ClientSession()
+    if custom_config_file is not None: 
+        config_file_name = custom_config_file
 
     if not server or (server and not reset): 
         config_file = open(config_file_name, 'r') 
