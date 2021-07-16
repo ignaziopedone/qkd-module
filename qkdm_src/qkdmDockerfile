@@ -12,6 +12,7 @@ RUN git checkout async
 RUN python -m pip install -r requirements.txt
 
 EXPOSE 5000 
+EXPOSE 6000
  
 ENTRYPOINT [ "python", "-u", "qkdmk_src/qkdm_server.py" "-reset" "true" "-server" "true" "-config"]
 CMD ["qkdm_src/config_files/config.yaml"]
