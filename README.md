@@ -8,7 +8,8 @@ This folder contains all files related with qkdm code.
     - fakeKE : simple (unsecure) simulator for testing purposes
 - api : all function to be called when a request is received 
 - qkdm_server : main file to be executed with flask app inside
-- vaultClient : interface module to intercat with vault 
+- asyncVaultClient : interface module to intercat with vault 
+- config_files folder 
 
 ## docs
 This folder contains project APIs, DB and sequence diagram documentation as pictures and as plantUML code
