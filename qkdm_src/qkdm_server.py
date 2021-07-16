@@ -179,9 +179,7 @@ async def exchange():
 async def main():
     global app, serverPort
 
-    parser = argparse.ArgumentParser(usage= '''
-    python file_name <port> <standalone> 
-    NOTE: python version >= 3.9 is required.  ''')
+    parser = argparse.ArgumentParser()
     parser.add_argument('-server', type=str, choices=['true', 'false'], help="defines QKS presence. If not specified QKDM will run as standalone module, if specified as 'true' qkdm will require for an 'attach_to_server' request for configuration")
     parser.add_argument('-reset', type=str, choices=['true', 'false'], help="forcethe reset of information received from a QKS registration")
     parser.add_argument('-config', type=str, help="name of the custom config file", default=None)
