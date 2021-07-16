@@ -1,7 +1,7 @@
 qkd_device:
   host: 172.18.0.102
-  port: 6000
-  role: sender
+  port: 6001
+  role: receiver
 qkdm:
   dest_ID: qkdm2a
   dest_IP: 172.18.0.102
@@ -13,5 +13,4 @@ qkdm:
   max_key_count: 20
   port: 5000
   protocol: fake
-
 

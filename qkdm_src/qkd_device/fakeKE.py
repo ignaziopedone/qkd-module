@@ -42,7 +42,7 @@ class fakeKE(QKD) :
         self.stop[0] = False
         if self.role == 'receiver' : 
             try: 
-                self.socket.bind((self.address, self.port))
+                self.socket.bind(("0.0.0.0", self.port))
                 self.listener = Thread(target=receive, args=(self.socket, self.dimension, self.stop, self.key_queue)).start() 
                 return 0
             except Exception: 
