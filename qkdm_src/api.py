@@ -189,7 +189,7 @@ async def attachToServer(qks_src_ip:str, qks_src_port:int, qks_src_id:str, qks_d
 
         ret = await register_data(res_data['vault_data'], res_data['database_data'], qks_data)
         if ret == 0: 
-            ret, _ = await init_module(server=True, reset=False)    
+            ret, _ , _ = await init_module(server=True, reset=False)    
         return ret 
         
 
