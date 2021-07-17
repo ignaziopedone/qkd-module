@@ -1,0 +1,54 @@
+# NORTHBOUND INTERFACE 
+## attachToServer
+POST http://172.20.161.67:5001/api/v1/qkdm/actions/attach HTTP/1.1
+content-type: application/json
+
+{
+    "qks_src_IP" : "127.0.0.1",
+    "qks_src_port" : 4001,
+    "qks_src_ID" : "qks2",
+    "qks_dest_ID" : "qks1"
+}
+
+### 
+## open_connect 
+POST http://172.20.161.67:5000/api/v1/qkdm/actions/open_connect HTTP/1.1
+Content-Type: application/json
+
+{
+    "key_stream_ID": "d88fbf3c-c31e-44d5-af99-b7fbfd829ab4",
+    "source" : "ks1",
+    "destination" : "ks2"
+}
+###
+## get_key_id
+GET http://172.27.2.227:5001/api/v1/qkdm/actions/get_id/22454498-8c44-4d56-9d0b-5a9c01312b0d?count=-1 HTTP/1.1
+
+###
+## check_id
+POST http://172.31.220.35:5000/api/v1/qkdm/actions/check_id HTTP/1.1
+Content-Type: application/json
+
+{
+    "index" : [2211680319, 2393008687], 
+    "key_stream_ID" : "d88fbf3c-c31e-44d5-af99-b7fbfd829ab4"
+}
+
+### 
+## get_key 
+POST http://172.31.220.35:5001/api/v1/qkdm/actions/get_key HTTP/1.1
+Content-Type: application/json
+
+{
+    "indexes" : [3525892836], 
+    "key_stream_ID" : "22454498-8c44-4d56-9d0b-5a9c01312b0d"
+}
+
+### 
+## close
+POST http://172.31.220.35:5000/api/v1/qkdm/actions/close HTTP/1.1
+Content-Type: application/json
+
+{
+    "key_stream_ID" : "ec3dfa23-b94f-4b2e-9fc4-8c8b5e077358"
+}
