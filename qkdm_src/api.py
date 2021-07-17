@@ -232,6 +232,7 @@ async def exchange(key_stream_ID:str) -> int:
     else: 
         await key_streams_collection.update_one({"_id" : key_stream_ID}, {"$set" : {"status" : "exchanging"}})
         ExchangerThread(key_stream_ID).start()
+        print("ExchangerThread started")
         return 0
 
 # MANAGMENT FUNCTIONS 
@@ -355,7 +356,7 @@ class ExchangerThread(Thread) :
         
         mount = config['vault']['secret_engine'] + "/" + self.key_stream
         n = config['qkdm']['max_key_count']
-
+        print(f"EXCHANGER: started for stream {self.key_stream}")
         while True: 
             key_stream = await streams_collection.find_one({"_id" : self.key_stream})
             if key_stream is None: 
@@ -371,6 +372,6 @@ class ExchangerThread(Thread) :
                     res_m = await streams_collection.update_one(({"_id" : self.key_stream, f"available_keys.{n}" : {"$exists" : False}}), {"$push" : {"available_keys" : id}})
                     if res_m.modified_count == 0: 
                         await vault_client.remove(mount, path=str(id)) 
-
+                print("key exchanged ")
             else: 
                 sleep(0.1)
