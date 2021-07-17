@@ -76,7 +76,7 @@ async def OPEN_CONNECT(source:str, destination:str, key_stream_ID:str=None, qos=
                 async with http_client.post(f"http://{config['qkdm']['dest_IP']}:{config['qkdm']['dest_port']}/api/v1/qkdm/actions/exchange", json=post_data,  timeout = 5) as res: 
                     if res.status == 200: 
                         await key_streams_collection.update_one({"_id" : key_stream_ID},{"$set" : {"status" : "exchanging", "qos" : qos}})
-                        ExchangerThread(key_stream_ID).start()
+                        asyncio.create_task(device_exchange(key_stream_ID))
                         return (0, key_stream_ID)
                     else: 
                         status = await res.json()['status']
@@ -231,7 +231,7 @@ async def exchange(key_stream_ID:str) -> int:
         return 9 
     else: 
         await key_streams_collection.update_one({"_id" : key_stream_ID}, {"$set" : {"status" : "exchanging"}})
-        ExchangerThread(key_stream_ID).start()
+        asyncio.create_task(device_exchange(key_stream_ID))
         print("ExchangerThread started")
         return 0
 
@@ -330,7 +330,7 @@ async def init_module(server : bool = False , reset : bool = False, custom_confi
         key_streams_collection = mongo_client[config['mongo_db']['db']]['key_streams']
         key_streams = key_streams_collection.find({"status" : "exchanging"}) 
         async for ks in key_streams : 
-            ExchangerThread(ks['_id']).start()
+            asyncio.create_task(device_exchange(ks['_id']))
 
         config['qkdm']['init'] = True 
         config_file = open(config_file_name, 'w') 
@@ -343,22 +343,17 @@ async def init_module(server : bool = False , reset : bool = False, custom_confi
     else: 
         return (1, "QKDM is waiting for registration to a QKS", config['qkdm']['port'])
 
-class ExchangerThread(Thread) : 
-    def __init__(self, key_stream:str):
-        self.key_stream = key_stream 
-        Thread.__init__(self, daemon=True  )
-
-    async def run(self):
+async def device_exchange(key_stream:str): 
         global config, qkd_device, vault_client, mongo_client  
         qkd_device.begin() 
 
         streams_collection = mongo_client[config['mongo_db']['db']]['key_streams']
         
-        mount = config['vault']['secret_engine'] + "/" + self.key_stream
+        mount = config['vault']['secret_engine'] + "/" + key_stream
         n = config['qkdm']['max_key_count']
-        print(f"EXCHANGER: started for stream {self.key_stream}")
+        print(f"EXCHANGER: started for stream {key_stream}")
         while True: 
-            key_stream = await streams_collection.find_one({"_id" : self.key_stream})
+            key_stream = await streams_collection.find_one({"_id" : key_stream})
             if key_stream is None: 
                 break 
             
@@ -369,7 +364,7 @@ class ExchangerThread(Thread) :
                     data = {str(id) : b64encode(key).decode()} # bytearray saved as b64 string 
                     await vault_client.writeOrUpdate(mount=mount, path=str(id), data=data) 
                     
-                    res_m = await streams_collection.update_one(({"_id" : self.key_stream, f"available_keys.{n}" : {"$exists" : False}}), {"$push" : {"available_keys" : id}})
+                    res_m = await streams_collection.update_one(({"_id" : key_stream, f"available_keys.{n}" : {"$exists" : False}}), {"$push" : {"available_keys" : id}})
                     if res_m.modified_count == 0: 
                         await vault_client.remove(mount, path=str(id)) 
                 print("key exchanged ")
