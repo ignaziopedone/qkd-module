@@ -195,8 +195,9 @@ async def main():
             print("ABORT: unable to init the module due to this error: \n", message )
             return 
         print(message)
-    except Exception: 
+    except Exception as e: 
         print("ABORT: unable to init the module due to an exception")
+        print(e)
         return
 
     print("QKDM SERVER: starting on port", serverPort)
