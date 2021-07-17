@@ -328,7 +328,7 @@ async def init_module(server : bool = False , reset : bool = False, custom_confi
 
         key_streams_collection = mongo_client[config['mongo_db']['db']]['key_streams']
         key_streams = key_streams_collection.find({"status" : "exchanging"}) 
-        for ks in await key_streams.to_list() : 
+        async for ks in key_streams : 
             ExchangerThread(ks['_id']).start()
 
         config['qkdm']['init'] = True 
