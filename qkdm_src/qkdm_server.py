@@ -136,7 +136,8 @@ async def attachToServer() :
             return value, 200
         else: 
             return value, 503
-    except Exception: 
+    except Exception as e: 
+        print(e)
         value = {'message' : "bad request: request does not contains a valid json object"}
         return value, 400
 
@@ -195,8 +196,9 @@ async def main():
             print("ABORT: unable to init the module due to this error: \n", message )
             return 
         print(message)
-    except Exception: 
+    except Exception as e: 
         print("ABORT: unable to init the module due to an exception")
+        print(e)
         return
 
     print("QKDM SERVER: starting on port", serverPort)

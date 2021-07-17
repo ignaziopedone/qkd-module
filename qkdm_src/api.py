@@ -189,7 +189,7 @@ async def attachToServer(qks_src_ip:str, qks_src_port:int, qks_src_id:str, qks_d
 
         ret = await register_data(res_data['vault_data'], res_data['database_data'], qks_data)
         if ret == 0: 
-            ret, _ = await init_module(server=True, reset=False)    
+            ret, _ , _ = await init_module(server=True, reset=False)    
         return ret 
         
 
@@ -328,7 +328,7 @@ async def init_module(server : bool = False , reset : bool = False, custom_confi
 
         key_streams_collection = mongo_client[config['mongo_db']['db']]['key_streams']
         key_streams = key_streams_collection.find({"status" : "exchanging"}) 
-        for ks in await key_streams.to_list() : 
+        async for ks in key_streams : 
             ExchangerThread(ks['_id']).start()
 
         config['qkdm']['init'] = True 
