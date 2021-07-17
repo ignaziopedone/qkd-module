@@ -353,11 +353,13 @@ async def device_exchange(key_stream:str):
         n = config['qkdm']['max_key_count']
         print(f"EXCHANGER: started for stream {key_stream}")
         while True: 
-            key_stream = await streams_collection.find_one({"_id" : key_stream})
+            key_stream = await streams_collection.find_one({"_id" : key_stream, "status" : "exchanging"})
             if key_stream is None: 
+                print("DEVICE EXCHANGE ERROR: key stream not valid ")
                 break 
             
             if len(key_stream['available_keys']) < n : 
+                print("DEVICE EXCHANGE: waiting for a key from the device ")
                 key, id, status = qkd_device.exchangeKey()
                 
                 if status == 0: 
