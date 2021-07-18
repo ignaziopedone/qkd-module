@@ -357,7 +357,7 @@ async def device_exchange(key_stream_id:str):
         key_stream = await streams_collection.find_one({"_id" : key_stream_id})
         while True: 
             if key_stream is None: 
-                print("DEVICE EXCHANGE ERROR: key stream not valid ")
+                print("DEVICE EXCHANGE ERROR: key stream not valid or closed")
                 break 
         
             if key_stream['status'] =="exchanging" and len(key_stream['available_keys']) < n : 
@@ -373,4 +373,5 @@ async def device_exchange(key_stream_id:str):
                         await vault_client.remove(mount, path=str(id)) 
                 print("key exchanged ")
             else: 
+                key_stream = await streams_collection.find_one({"_id" : key_stream_id})
                 await asyncio.sleep(0.1)
