@@ -1,12 +1,11 @@
 
 import asyncio
-import qkd_device.QKD
 from uuid import uuid4
 from asyncVaultClient import VaultClient 
 import yaml
 from threading import Thread
-from time import sleep
 from base64 import b64encode, b64decode
+from pymongo import ReturnDocument
 
 import aiohttp #import requests
 from motor.motor_asyncio import AsyncIOMotorClient as MongoClient # from pymongo import MongoClient, ReturnDocument
@@ -232,7 +231,7 @@ async def exchange(key_stream_ID:str) -> int:
     else: 
         await key_streams_collection.update_one({"_id" : key_stream_ID}, {"$set" : {"status" : "exchanging"}})
         asyncio.create_task(device_exchange(key_stream_ID))
-        print("ExchangerThread started")
+        print("Exchanger Task started")
         return 0
 
 # MANAGMENT FUNCTIONS 
@@ -304,12 +303,12 @@ async def init_module(server : bool = False , reset : bool = False, custom_confi
         return (4, "ERROR: unsupported qkd protocol", -1)
 
     if config['qkdm']['protocol'] == "fake":
-        from qkd_device.fakeKE import fakeKE as QKDCore
+        from qkd_devices.fakeKE import fakeKE as QKDCore
         
 
     if qkd_device is None: 
         qkd_device = QKDCore(config['qkd_device']['role'], config['qkd_device']['port'], config['qkd_device']['host'], config['qkdm']['max_key_count'])
-        if qkd_device.begin() != 0: 
+        if await qkd_device.begin() != 0: 
             return (4, "ERROR: unable to start qkd device", -1) 
 
 
@@ -343,32 +342,35 @@ async def init_module(server : bool = False , reset : bool = False, custom_confi
     else: 
         return (1, "QKDM is waiting for registration to a QKS", config['qkdm']['port'])
 
-async def device_exchange(key_stream:str): 
+async def device_exchange(key_stream_id:str): 
         global config, qkd_device, vault_client, mongo_client  
-        qkd_device.begin() 
+        res = await qkd_device.begin() 
+        if res != 0: 
+            print("QKD DEVICE ERROR: unable to begin! ")
+            return 
 
         streams_collection = mongo_client[config['mongo_db']['db']]['key_streams']
         
-        mount = config['vault']['secret_engine'] + "/" + key_stream
+        mount = config['vault']['secret_engine'] + "/" + key_stream_id
         n = config['qkdm']['max_key_count']
-        print(f"EXCHANGER: started for stream {key_stream}")
+        print(f"EXCHANGER: started for stream {key_stream_id}")
+        key_stream = await streams_collection.find_one({"_id" : key_stream_id})
         while True: 
-            key_stream = await streams_collection.find_one({"_id" : key_stream, "status" : "exchanging"})
             if key_stream is None: 
                 print("DEVICE EXCHANGE ERROR: key stream not valid ")
                 break 
-            
-            if len(key_stream['available_keys']) < n : 
+        
+            if key_stream['status'] =="exchanging" and len(key_stream['available_keys']) < n : 
                 print("DEVICE EXCHANGE: waiting for a key from the device ")
-                key, id, status = qkd_device.exchangeKey()
+                key, id, status = await qkd_device.exchangeKey()
                 
                 if status == 0: 
                     data = {str(id) : b64encode(key).decode()} # bytearray saved as b64 string 
                     await vault_client.writeOrUpdate(mount=mount, path=str(id), data=data) 
                     
-                    res_m = await streams_collection.update_one(({"_id" : key_stream, f"available_keys.{n}" : {"$exists" : False}}), {"$push" : {"available_keys" : id}})
-                    if res_m.modified_count == 0: 
+                    key_stream = await streams_collection.find_one_and_update(({"_id" : key_stream_id, f"available_keys.{n}" : {"$exists" : False}}), {"$push" : {"available_keys" : id}}, return_document=ReturnDocument.AFTER)
+                    if id not in key_stream['available_keys']: 
                         await vault_client.remove(mount, path=str(id)) 
                 print("key exchanged ")
             else: 
-                sleep(0.1)
+                await asyncio.sleep(0.1)
