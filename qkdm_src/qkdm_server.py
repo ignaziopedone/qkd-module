@@ -137,7 +137,6 @@ async def attachToServer() :
         else: 
             return value, 503
     except Exception as e: 
-        print(e)
         value = {'message' : "bad request: request does not contains a valid json object"}
         return value, 400
 
@@ -185,8 +184,8 @@ async def main():
     parser.add_argument('-reset', type=str, choices=['true', 'false'], help="forcethe reset of information received from a QKS registration")
     parser.add_argument('-config', type=str, help="name of the custom config file", default=None)
     args = parser.parse_args()
-    server = True #if args.server == 'true' else False 
-    reset = True #if args.reset == 'true' else False 
+    server = True if args.server == 'true' else False 
+    reset = True if args.reset == 'true' else False 
     config_file = args.config 
 
     try: 
@@ -195,10 +194,8 @@ async def main():
         if res != 0 and res != 1  : 
             print("ABORT: unable to init the module due to this error: \n", message )
             return 
-        print(message)
     except Exception as e: 
-        print("ABORT: unable to init the module due to an exception")
-        print(e)
+        print("ABORT: unable to init the module due to an exception", e)
         return
 
     print("QKDM SERVER: starting on port", serverPort)
