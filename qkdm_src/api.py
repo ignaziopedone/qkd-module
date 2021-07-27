@@ -117,11 +117,17 @@ async def GET_KEY(key_stream_ID:str, indexes: list, metadata=None) -> tuple[int,
 
     res = await key_streams_collection.find_one_and_update({"_id" : key_stream_ID, "available_keys" : {"$all" : indexes}}, {"$pull" : {"available_keys" : {"$in" : indexes}}})
     keys = []
+    tasks = [] 
     if res is not None: 
         for index in indexes:
             path = key_stream_ID + "/" + str(index)
-            ret = await vault_client.readAndRemove(mount=config['vault']['secret_engine'], path=path)
-            keys.append(ret[str(index)])
+            tasks.append(asyncio.create_task(vault_client.readAndRemove(mount=config['vault']['secret_engine'], path=path)))
+            #ret = await vault_client.readAndRemove(mount=config['vault']['secret_engine'], path=path)
+            #keys.append(ret[str(index)])
+
+        ret_data = await asyncio.gather(*tasks)
+        for ret, ind in zip(ret_data, indexes): 
+            keys.append(ret[str(ind)])
         return (0, indexes, keys)
     
     return (2, [], [])
