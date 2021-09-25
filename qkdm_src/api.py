@@ -117,11 +117,17 @@ async def GET_KEY(key_stream_ID:str, indexes: list, metadata=None) -> tuple[int,
 
     res = await key_streams_collection.find_one_and_update({"_id" : key_stream_ID, "available_keys" : {"$all" : indexes}}, {"$pull" : {"available_keys" : {"$in" : indexes}}})
     keys = []
+    tasks = [] 
     if res is not None: 
         for index in indexes:
             path = key_stream_ID + "/" + str(index)
-            ret = await vault_client.readAndRemove(mount=config['vault']['secret_engine'], path=path)
-            keys.append(ret[str(index)])
+            tasks.append(asyncio.create_task(vault_client.readAndRemove(mount=config['vault']['secret_engine'], path=path)))
+            #ret = await vault_client.readAndRemove(mount=config['vault']['secret_engine'], path=path)
+            #keys.append(ret[str(index)])
+
+        ret_data = await asyncio.gather(*tasks)
+        for ret, ind in zip(ret_data, indexes): 
+            keys.append(ret[str(ind)])
         return (0, indexes, keys)
     
     return (2, [], [])
@@ -346,7 +352,7 @@ async def device_exchange(key_stream_id:str):
         global config, qkd_device, vault_client, mongo_client  
         res = await qkd_device.begin() 
         if res != 0: 
-            print("QKD DEVICE ERROR: unable to begin! ")
+            print("QKD DEVICE ERROR: unable to start! ")
             return 
 
         streams_collection = mongo_client[config['mongo_db']['db']]['key_streams']
@@ -357,11 +363,9 @@ async def device_exchange(key_stream_id:str):
         key_stream = await streams_collection.find_one({"_id" : key_stream_id})
         while True: 
             if key_stream is None: 
-                print("DEVICE EXCHANGE ERROR: key stream not valid or closed")
                 break 
         
             if key_stream['status'] =="exchanging" and len(key_stream['available_keys']) < n : 
-                print("DEVICE EXCHANGE: waiting for a key from the device ")
                 key, id, status = await qkd_device.exchangeKey()
                 
                 if status == 0: 
@@ -371,7 +375,6 @@ async def device_exchange(key_stream_id:str):
                     key_stream = await streams_collection.find_one_and_update(({"_id" : key_stream_id, f"available_keys.{n}" : {"$exists" : False}}), {"$push" : {"available_keys" : id}}, return_document=ReturnDocument.AFTER)
                     if key_stream is not None and id not in key_stream['available_keys']: 
                         await vault_client.remove(mount, path=str(id)) 
-                print("key exchanged ")
             else: 
                 key_stream = await streams_collection.find_one({"_id" : key_stream_id})
                 await asyncio.sleep(0.1)

@@ -29,13 +29,12 @@ class fakeKE(QKD) :
             try: 
                 server = await asyncio.start_server(self.receive, '0.0.0.0', self.port)
                 self.server_task = asyncio.create_task(server.serve_forever())
+                print("QKD DEVICE: receiver started")
                 return 0
-            except Exception as e: 
-                print(e)
+            except Exception: 
                 return 1
 
         if self.role == 'sender' : 
-            
             for i in range(10) : 
                 try: 
                     reader, writer = await asyncio.open_connection(self.address, self.port)
@@ -43,21 +42,18 @@ class fakeKE(QKD) :
                     self.sender_rw['w'] = writer
                     print("QKD DEVICE: sender started")
                     return 0 
-                except Exception as e:
-                    exc = e
+                except Exception:
                     await asyncio.sleep(2) # wait and then retry 
-        print(exc)
-        return 1 # after 10 times fail 
+        
+            return 1 # after 10 times fail 
         
     async def receive(self, reader : asyncio.StreamReader, writer : asyncio.StreamWriter) : 
-        print("FAKE KE: RECEIVED A CONNECTION")
         while (not self.stop[0]): 
             data = await reader.read(self.dimension+int(32/8)) 
             key = data[0:self.dimension] 
             id = int.from_bytes(data[self.dimension:], 'big')
             data = (id, key)
             await self.key_queue.put(data)
-            print("FAKE KE: PUSHING DATA")
 
         writer.close()
         await writer.wait_closed()
@@ -69,21 +65,16 @@ class fakeKE(QKD) :
         data = b''
         try: 
             if self.role == 'sender' : 
-                print("FAKE KE: SENDER READY TO SEND")
                 writer : asyncio.StreamWriter = self.sender_rw['w']
                 id : int = getrandbits(32) 
                 key : bytes = randbytes(self.dimension)
                 data = key + id.to_bytes(int(32/8), 'big')
                 writer.write(data)
-                print("FAKE KE: WRITING DATA")
                 return key, id, 0
             elif self.role == 'receiver': 
-                print("FAKE KE: RECEIVER READY TO POP")
                 id, key = await self.key_queue.get()
-                print("FAKE KE: popping data")
                 return key, id, 0
         except Exception as e:
-            print(e) 
             return None, -1, 1 
 
     async def end(self): 
