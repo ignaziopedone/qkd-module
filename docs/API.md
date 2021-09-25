@@ -6,8 +6,8 @@
 | **open_connect**      | /api/v1/qkdm/actions/open_connect                 | POST  |       |
 | **close**             | /api/v1/qkdm/actions/close                        | POST  |       |
 | **get_key**           | /api/v1/qkdm/actions/get_key                      | POST  |       |
-| get_key_IDs           | /api/v1/qkdm/actions/get_ID/*<key_stream_ID>*?count=*<count>    | GET   |       |
-| check_key_IDs         | /api/v1/qkdm/actions/check_ID                     | POST  |       |
+| get_key_ids           | /api/v1/qkdm/actions/get_ID/*<key_stream_ID>*?count=*<count>*    | GET   |       |
+| check_id              | /api/v1/qkdm/actions/check_ID                     | POST  |       |
 | attach_to_server      | /api/v1/qkdm/actions/attach                       | POST  |       |
 
 
@@ -15,7 +15,6 @@
 | method                | path  | action| note  | 
 |-------                | ----  | ------| ----  |
 | open_stream           | /api/v1/qkdm/actions/open_stream      | POST  |       |
-| close_stream          | /api/v1/qkdm/actions/close_stream     | POST  |       |
 | exchange              | /api/v1/qkdm/actions/exchange         | POST  |       |
 
 ## JSONs format 

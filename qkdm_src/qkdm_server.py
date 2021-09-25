@@ -122,7 +122,7 @@ async def check_id():
         return value, 400
 
 @app.route(prefix+"/attach", methods=['POST'])
-async def attachToServer() :
+async def attach_to_server() :
     content = await request.get_json() 
     try:
         qks_src_ip = str(content['qks_src_IP']) 
