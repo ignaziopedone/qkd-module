@@ -2,6 +2,7 @@ from quart import request, Quart
 import asyncio
 import api
 import argparse
+import logging
 
 import nest_asyncio
 nest_asyncio.apply()
@@ -10,6 +11,7 @@ app = Quart(__name__)
 serverPort = 5000
 prefix = "/api/v1/qkdm/actions"
 
+logging.basicConfig(filename='test_logging/test.log', filemode='w', level=logging.INFO)
 
 messages = {0: "successfull",
             1: "Successful connection, but peer not connected",
@@ -39,13 +41,15 @@ async def open_connect() :
         # TODO: CHECK THAT SOURCE == AUTH_SOURCE
 
         status, key_stream_ID = await api.OPEN_CONNECT(source, destination, key_stream_ID, qos_parameters)
+        app.logger.info(f"open_connect returning: status = {status} , key_stream_ID = {key_stream_ID}")
         if status == 0: 
             value = {'status' : status, 'key_stream_ID' : key_stream_ID}
             return value, 200
         else: 
             value = {'status' : status, 'message' : messages[status]}
             return value, 503
-    except Exception:
+    except Exception as e:
+        app.logger.warning(f"open_connect EXCEPTION: {e}")
         value = {'message' : "bad request: request does not contains a valid json object"}
         return value, 400 
 
@@ -56,11 +60,13 @@ async def close() :
         key_stream_ID = str(content['key_stream_ID'] )
         status = await api.CLOSE(key_stream_ID)
         value = {'status' : status, 'message' : messages[status]}
+        app.logger.info(f"close returning: status = {status} , key_stream_ID = {key_stream_ID}")
         if status == 0:
             return value, 200
         else: 
             return value, 503
-    except Exception:
+    except Exception as e:
+        app.logger.warning(f"close EXCEPTION: {e}")
         value = {'message' : "bad request: request does not contains a valid json object"}
         return value, 400 
 
@@ -69,17 +75,19 @@ async def get_key():
     content = await request.get_json() 
     try:
         key_stream_ID = str(content['key_stream_ID'] )
-        indexes = list(content['indexes']) 
+        req_indexes = list(content['indexes']) 
         metadata = content['metadata'] if 'metadata' in content else None 
 
-        status, indexes, keys = await api.GET_KEY(key_stream_ID, indexes, metadata) 
+        status, indexes, keys = await api.GET_KEY(key_stream_ID, req_indexes, metadata) 
+        app.logger.info(f"get_key returning: status = {status} , key_stream_ID = {key_stream_ID}, indexes = {req_indexes}")
         if status == 0: 
             value = {'status' : status, 'indexes' : indexes, 'keys' : keys}
             return value, 200
         else :
             value = {'status' : status, 'message' : messages[status]}
             return value, 503
-    except:
+    except Exception as e:
+        app.logger.warning(f"get_key EXCEPTION: {e}")
         value = {'message' : "bad request: request does not contains a valid json object"}
         return value, 400 
 
@@ -90,6 +98,7 @@ async def get_key_id(key_stream_ID):
     try: 
         count = -1 if param is None else int(param)
         status, index_list = await api.GET_KEY_ID(key_stream_ID, count)
+        app.logger.info(f"get_key_id returning: status = {status} , key_stream_ID = {key_stream_ID}, query_param = {param}, len = {len(index_list)}")
         if status == 0: 
             value = {'status' : status, 
                 'available_indexes' : len(index_list) if param == None else index_list}
@@ -98,7 +107,8 @@ async def get_key_id(key_stream_ID):
             value = {'status' : status, 'message' : messages[status]}
             return value, 503
 
-    except Exception: 
+    except Exception as e: 
+        app.logger.warning(f"get_key_id EXCEPTION: {e}")
         value = {'message' : "bad request: request does not contains a valid argument"}
         return value, 400 
 
@@ -111,13 +121,15 @@ async def check_id():
         indexes = list(content['indexes'])
         
         status = await api.CHECK_ID(key_stream_ID, indexes)
+        app.logger.info(f"check_id returning: status = {status} , key_stream_ID = {key_stream_ID}, indexes = {indexes}")
         value = {'status' : status, 'message' : messages[status]}
         if status == 0: 
             return value, 200
         else: 
             return value, 503
 
-    except Exception:
+    except Exception as e:
+        app.logger.warning(f"check_id EXCEPTION: {e}")
         value = {'message' : "bad request: request does not contains a valid json object"}
         return value, 400
 
@@ -132,11 +144,13 @@ async def attach_to_server() :
 
         status = await api.attachToServer(qks_src_ip, qks_src_port, qks_src_id, qks_dest_id)
         value = {'status' : status, 'message' : messages[status]}
+        app.logger.info(f"attach_to_server returning: status = {status} , qks_src_id = {qks_src_id}")
         if status == 0: 
             return value, 200
         else: 
             return value, 503
     except Exception as e: 
+        app.logger.warning(f"attach_to_server EXCEPTION: {e}")
         value = {'message' : "bad request: request does not contains a valid json object"}
         return value, 400
 
@@ -150,12 +164,14 @@ async def open_stream():
         source = str(content['source'])
         destination = str(content['destination'])
         status = await api.open_stream(key_stream_ID, source, destination)
+        app.logger.info(f"open_stream returning: status = {status} , key_stream_ID = {key_stream_ID}, destination = {destination}")
         value = {'status' : status, 'message' : messages[status]}
         if status == 0: 
             return value, 200
         else: 
             return value, 503
-    except Exception:
+    except Exception as e:
+        app.logger.warning(f"open_stream EXCEPTION: {e}")
         value = {'message' : "bad request: request does not contains a valid json object"}
         return value, 400
 
@@ -166,12 +182,14 @@ async def exchange():
     try:    
         key_stream_ID = str(content['key_stream_ID'] )
         status = await api.exchange(key_stream_ID)
+        app.logger.info(f"exchange returning: status = {status} , key_stream_ID = {key_stream_ID}")
         value = {'status' : status, 'message' : messages[status]}
         if status == 0: 
             return value, 200
         else: 
             return value, 503
-    except Exception:
+    except Exception as e:
+        app.logger.warning(f"exchange EXCEPTION: {e}")
         value = {'message' : "bad request: request does not contains a valid json object"}
         return value, 400
 
@@ -192,13 +210,14 @@ async def main():
         res, message, serverPort = await api.init_module(server, reset, config_file)
 
         if res != 0 and res != 1  : 
-            print("ABORT: unable to init the module due to this error: \n", message )
+            app.logger.error(f"ABORT: unable to init the module - ERROR {message}")
             return 
+        else: 
+            app.logger.info(f"INIT module - {message}")
     except Exception as e: 
-        print("ABORT: unable to init the module due to an exception", e)
+        app.logger.error(f"ABORT: unable to init the module - EXCEPTION {e}")
         return
 
-    print("QKDM SERVER: starting on port", serverPort)
     app.run(host='0.0.0.0', port=serverPort, loop = asyncio.get_event_loop())
 
 

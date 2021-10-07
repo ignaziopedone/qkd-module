@@ -6,11 +6,12 @@ import yaml
 from threading import Thread
 from base64 import b64encode, b64decode
 from pymongo import ReturnDocument
+import logging
 
-import aiohttp #import requests
-from motor.motor_asyncio import AsyncIOMotorClient as MongoClient # from pymongo import MongoClient, ReturnDocument
+import aiohttp
+from motor.motor_asyncio import AsyncIOMotorClient as MongoClient
 
-
+logger = logging.getLogger('api')
 vault_client : VaultClient = None 
 mongo_client : MongoClient = None 
 supported_protocols = ["fake"]
@@ -54,8 +55,7 @@ async def OPEN_CONNECT(source:str, destination:str, key_stream_ID:str=None, qos=
                 'source' : source,
                 'destination' : destination
             }
-            #res = requests.post(f"http://{config['qkdm']['dest_IP']}:{config['qkdm']['dest_port']}/api/v1/qkdm/actions/open_stream", json=post_data)
-            
+           
             async with http_client.post(f"http://{config['qkdm']['dest_IP']}:{config['qkdm']['dest_port']}/api/v1/qkdm/actions/open_stream", json=post_data, timeout = 5) as res:
                 if res.status == 200:
                     await key_streams_collection.insert_one(key_stream)
@@ -71,7 +71,6 @@ async def OPEN_CONNECT(source:str, destination:str, key_stream_ID:str=None, qos=
             try: 
                 post_data = {"key_stream_ID" : key_stream_ID}
                 
-                #res = requests.post(f"http://{config['qkdm']['dest_IP']}:{config['qkdm']['dest_port']}/api/v1/qkdm/actions/exchange", json=post_data)
                 async with http_client.post(f"http://{config['qkdm']['dest_IP']}:{config['qkdm']['dest_port']}/api/v1/qkdm/actions/exchange", json=post_data,  timeout = 5) as res: 
                     if res.status == 200: 
                         await key_streams_collection.update_one({"_id" : key_stream_ID},{"$set" : {"status" : "exchanging", "qos" : qos}})
@@ -122,8 +121,6 @@ async def GET_KEY(key_stream_ID:str, indexes: list, metadata=None) -> tuple[int,
         for index in indexes:
             path = key_stream_ID + "/" + str(index)
             tasks.append(asyncio.create_task(vault_client.readAndRemove(mount=config['vault']['secret_engine'], path=path)))
-            #ret = await vault_client.readAndRemove(mount=config['vault']['secret_engine'], path=path)
-            #keys.append(ret[str(index)])
 
         ret_data = await asyncio.gather(*tasks)
         for ret, ind in zip(ret_data, indexes): 
@@ -185,7 +182,6 @@ async def attachToServer(qks_src_ip:str, qks_src_port:int, qks_src_id:str, qks_d
         'key_size' : config['qkdm']['key_size']
     }
 
-    # response = requests.post(f"http://{qks_src_ip}:{qks_src_port}/api/v1/qkdms", json=post_data)
     async with http_client.post(f"http://{qks_src_ip}:{qks_src_port}/api/v1/qkdms", json=post_data, timeout = 5) as response:  
         if response.status != 200 : 
             return 13
@@ -237,7 +233,6 @@ async def exchange(key_stream_ID:str) -> int:
     else: 
         await key_streams_collection.update_one({"_id" : key_stream_ID}, {"$set" : {"status" : "exchanging"}})
         asyncio.create_task(device_exchange(key_stream_ID))
-        print("Exchanger Task started")
         return 0
 
 # MANAGMENT FUNCTIONS 
@@ -352,17 +347,19 @@ async def device_exchange(key_stream_id:str):
         global config, qkd_device, vault_client, mongo_client  
         res = await qkd_device.begin() 
         if res != 0: 
-            print("QKD DEVICE ERROR: unable to start! ")
+            logger.error("QKD device ERROR: unable to start")
             return 
 
         streams_collection = mongo_client[config['mongo_db']['db']]['key_streams']
         
         mount = config['vault']['secret_engine'] + "/" + key_stream_id
         n = config['qkdm']['max_key_count']
-        print(f"EXCHANGER: started for stream {key_stream_id}")
+        logger.info(f"QKD device started: key_stream_id = {key_stream_id}")
         key_stream = await streams_collection.find_one({"_id" : key_stream_id})
+        
         while True: 
             if key_stream is None: 
+                logger.warning(f"QKD device stopping: key_stream_id {key_stream_id} not available")
                 break 
         
             if key_stream['status'] =="exchanging" and len(key_stream['available_keys']) < n : 
