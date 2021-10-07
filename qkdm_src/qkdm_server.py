@@ -11,7 +11,7 @@ app = Quart(__name__)
 serverPort = 5000
 prefix = "/api/v1/qkdm/actions"
 
-logging.basicConfig(filename='test_logging/test.log', filemode='w', level=logging.INFO)
+logging.basicConfig(filename='test.log', filemode='w', level=logging.INFO)
 
 messages = {0: "successfull",
             1: "Successful connection, but peer not connected",
