@@ -144,10 +144,11 @@ async def attach_to_server() :
 
         status = await api.attachToServer(qks_src_ip, qks_src_port, qks_src_id, qks_dest_id)
         value = {'status' : status, 'message' : messages[status]}
-        app.logger.info(f"attach_to_server returning: status = {status} , qks_src_id = {qks_src_id}")
         if status == 0: 
+            app.logger.info(f"attach_to_server returning: status = {status} , qks_src_id = {qks_src_id}")
             return value, 200
         else: 
+            app.logger.warning(f"attach_to_server error: status = {status} , qks_src_id = {qks_src_id}")
             return value, 503
     except Exception as e: 
         app.logger.warning(f"attach_to_server EXCEPTION: {e}")
@@ -155,7 +156,7 @@ async def attach_to_server() :
         return value, 400
 
 
-# QKDM INTERFACE
+# SYNC INTERFACE
 @app.route(prefix+"/open_stream", methods=['POST'])
 async def open_stream(): 
     content = await request.get_json() 
@@ -164,11 +165,13 @@ async def open_stream():
         source = str(content['source'])
         destination = str(content['destination'])
         status = await api.open_stream(key_stream_ID, source, destination)
-        app.logger.info(f"open_stream returning: status = {status} , key_stream_ID = {key_stream_ID}, destination = {destination}")
+        
         value = {'status' : status, 'message' : messages[status]}
         if status == 0: 
+            app.logger.info(f"open_stream returning: status = {status} , key_stream_ID = {key_stream_ID}, destination = {destination}")
             return value, 200
         else: 
+            app.logger.warning(f"open_stream error: status = {status} , key_stream_ID = {key_stream_ID}, destination = {destination}")
             return value, 503
     except Exception as e:
         app.logger.warning(f"open_stream EXCEPTION: {e}")
@@ -182,11 +185,13 @@ async def exchange():
     try:    
         key_stream_ID = str(content['key_stream_ID'] )
         status = await api.exchange(key_stream_ID)
-        app.logger.info(f"exchange returning: status = {status} , key_stream_ID = {key_stream_ID}")
+        
         value = {'status' : status, 'message' : messages[status]}
         if status == 0: 
+            app.logger.info(f"exchange returning: status = {status} , key_stream_ID = {key_stream_ID}")
             return value, 200
         else: 
+            app.logger.warning(f"exchange error: status = {status} , key_stream_ID = {key_stream_ID}")
             return value, 503
     except Exception as e:
         app.logger.warning(f"exchange EXCEPTION: {e}")
