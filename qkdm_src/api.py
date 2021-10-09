@@ -182,7 +182,19 @@ async def attachToServer(qks_src_ip:str, qks_src_port:int, qks_src_id:str, qks_d
         'key_size' : config['qkdm']['key_size']
     }
 
-    async with http_client.post(f"http://{qks_src_ip}:{qks_src_port}/api/v1/qkdms", json=post_data, timeout = 5) as response:  
+
+    auth_string = f"client_id={config['keycloak']['client_id']}&client_secret={config['keycloak']['client_secret']}&grant_type=password&scope=openid&username={config['keycloak']['username'] }&password={config['keycloak']['password']}"
+    auth_headers = {'Content-Type':'application/x-www-form-urlencoded'}
+
+    async with http_client.post(f"http://{config['keycloak']['address']}:{config['keycloak']['port']}/auth/realms/{config['keycloak']['realm']}/protocol/openid-connect/token", data=auth_string, headers=auth_headers, timeout = 5) as auth_res:  
+        if auth_res.status != 200 : 
+            return 14
+        else: 
+            ret_json = await auth_res.json()
+            access_token = ret_json['access_token']
+
+    token_header = {'Authorization' : f'Bearer {access_token}'}
+    async with http_client.post(f"http://{qks_src_ip}:{qks_src_port}/api/v1/qkdms", json=post_data, headers = token_header, timeout = 5) as response:  
         if response.status != 200 : 
             return 13
 

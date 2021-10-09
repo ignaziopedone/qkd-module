@@ -26,7 +26,8 @@ messages = {0: "successfull",
             10: "CHECK_ID failed because some ids are not available" , # Not in ETSI standard
             11: "Error during QKDM or component initialization", # Not in ETSI standard
             12: "Module already initialized : restart it and force reset if you want to attatch to a new server", # Not in ETSI standard
-            13: "Unable to complete registration to requested QKS"} # Not in ETSI standard
+            13: "Unable to complete registration to requested QKS", # Not in ETSI standard
+            14: "OIDC error : unable to authenticate" } # Not in ETSI standard
 
 # SOUTHBOUND INTERFACE 
 @app.route(prefix+"/open_connect", methods=['POST'])

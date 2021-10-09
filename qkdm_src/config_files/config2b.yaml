@@ -6,10 +6,18 @@ qkdm:
   id: qkdm2b
   ip: 172.18.0.100
   key_size: 128
-  max_key_count: 20
+  max_key_count: 100
   dest_ID: qkdm3
   dest_IP: 172.18.0.103
   dest_port: 5000
   init: false
   port: 5000
   protocol: fake
+keycloak: 
+  realm: qks
+  address: 172.18.0.40
+  port : 8080
+  client_id: qks
+  client_secret : 1b64ec08-e59f-43be-b10b-e4810de5191a
+  username : qkdm2b
+  password : password
