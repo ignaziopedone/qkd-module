@@ -285,18 +285,11 @@ async def register_data(vault_data : dict, db_data : dict, qks_data: dict) -> in
     config_file.close() 
     return 0
 
-async def check_init() -> int : # return 1 if everything is ok 
+async def check_init() -> int : # return 0 if everything is ok 
     global config
     if config['qkdm']['init'] is True:
         return 0 
-     
-    config_file = open(config_file_name, 'r') 
-    prefs = yaml.safe_load(config_file) 
-    config_file.close() 
 
-    config['qkdm']['init'] = prefs['qkdm']['init']
-    if not config['qkdm']['init']: 
-        return 1
     return await init_module()[0]
 
 async def init_module(server : bool = False , reset : bool = False, custom_config_file : str = None ) -> tuple[int, str, int]:
@@ -326,9 +319,6 @@ async def init_module(server : bool = False , reset : bool = False, custom_confi
 
 
     if not server or (server and not reset): 
-        if not server :
-            config.pop("qks", None)
-
         try: 
             mongo_client = MongoClient(f"mongodb://{config['mongo_db']['user']}:{config['mongo_db']['password']}@{config['mongo_db']['host']}:{config['mongo_db']['port']}/{config['mongo_db']['db']}?authSource={config['mongo_db']['auth_src']}")
             await mongo_client[config['mongo_db']['db']].list_collection_names()
@@ -345,10 +335,6 @@ async def init_module(server : bool = False , reset : bool = False, custom_confi
             asyncio.create_task(device_exchange(ks['_id']))
 
         config['qkdm']['init'] = True 
-        config_file = open(config_file_name, 'w') 
-        yaml.safe_dump(config, config_file, default_flow_style=False)
-        config_file.close()
-
         
         message =  "QKDM initialized as standalone component" if not server else "QKDM initialized with QKS data from previous registration"
         return (0, message, config['qkdm']['port'])
