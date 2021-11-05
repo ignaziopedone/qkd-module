@@ -20,6 +20,7 @@
 ## JSONs format 
 ![](./img/API_module_JSON.png)
 
+<!-- 
 ## PLANTUML CODE
 ## QKD MODULE
 
@@ -132,3 +133,4 @@
     "key_stream_ID" : "String"
 }
 @endjson
+-->

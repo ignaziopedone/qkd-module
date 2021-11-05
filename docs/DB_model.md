@@ -4,6 +4,7 @@
 ![](./img/DB_model_JSON_module.png)
 
 
+<!-- 
 # PlantUML JSON Codes
 @startjson
 #highlight "_id" 
@@ -21,3 +22,4 @@
 	"status" : "String" 
 }
 @endjson
+-->
