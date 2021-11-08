@@ -7,7 +7,13 @@
 <!-- 
 # PlantUML JSON Codes
 @startjson
-#highlight "_id" 
+<style>
+jsonDiagram {
+  node {
+	  BackGroundColor White
+	}
+}
+</style>
 {
 "<color:green>**key_streams**" : "", 
   	"_id": "String (uuid4) ", 
@@ -16,8 +22,7 @@
 	"dest_id" : "String", 
 	"qos" : {
 		"key_lenght" : "integer",
-		"timeout" : "integer",
-		"parameter" : "anything"
+		"timeout" : "integer"
 	}, 
 	"status" : "String" 
 }
