@@ -315,13 +315,13 @@ async def init_module(server : bool = False , reset : bool = False, custom_confi
         return (11, f"ERROR: wrong config file: {e}", -1)
     print("config file done, starting qkd device")
         
-    try: 
-        if qkd_device is None: 
-            qkd_device = QKDCore(config['qkd_device']['role'], config['qkd_device']['port'], config['qkd_device']['host'], config['qkdm']['max_key_count'])
-            if await qkd_device.begin() != 0: 
-                return (4, "ERROR: unable to start qkd device", -1) 
-    except Exception as e: 
-        return (4, f"ERROR: exception in qkd device startup - {e}", -1) 
+    # try: 
+    #     if qkd_device is None: 
+    #         qkd_device = QKDCore(config['qkd_device']['role'], config['qkd_device']['port'], config['qkd_device']['host'], config['qkdm']['max_key_count'])
+    #         if await qkd_device.begin() != 0: 
+    #             return (4, "ERROR: unable to start qkd device", -1) 
+    # except Exception as e: 
+    #     return (4, f"ERROR: exception in qkd device startup - {e}", -1) 
     print("qkd device started, checking mongo")
 
     if not server or (server and not reset): 
