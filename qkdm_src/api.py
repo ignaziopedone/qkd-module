@@ -295,11 +295,12 @@ async def check_init() -> int : # return 0 if everything is ok
 async def init_module(server : bool = False , reset : bool = False, custom_config_file : str = None ) -> tuple[int, str, int]:
     global vault_client, mongo_client, config, supported_protocols, qkd_device, http_client, config_file_name
 
-    
+    print("INIT started")
+    print("opening http session")
     http_client = aiohttp.ClientSession()
     if custom_config_file is not None: 
         config_file_name = custom_config_file
-
+    print("http sessione opened, opening config file")
     try:
         config_file = open(config_file_name, 'r') 
         config = yaml.safe_load(config_file) 
@@ -312,6 +313,7 @@ async def init_module(server : bool = False , reset : bool = False, custom_confi
             from qkd_devices.fakeKE import fakeKE as QKDCore
     except Exception as e: 
         return (11, f"ERROR: wrong config file: {e}", -1)
+    print("config file done, starting qkd device")
         
     try: 
         if qkd_device is None: 
@@ -320,7 +322,7 @@ async def init_module(server : bool = False , reset : bool = False, custom_confi
                 return (4, "ERROR: unable to start qkd device", -1) 
     except Exception as e: 
         return (4, f"ERROR: exception in qkd device startup - {e}", -1) 
-
+    print("qkd device started, checking mongo")
 
     if not server or (server and not reset): 
         try: 
@@ -328,11 +330,12 @@ async def init_module(server : bool = False , reset : bool = False, custom_confi
             await mongo_client[config['mongo_db']['db']].list_collection_names()
         except Exception as e: 
             return (11, f"ERROR: unable to connect to MongoDB: {e}", -1)
+        print("mongo checked, checking vault")
 
         vault_client = VaultClient(config['vault']['host'], config['vault']['port'], config['vault']['token']) 
         if not (await vault_client.connect()):
             return (11, "ERROR: unable to connect to Vault", -1)
-
+        print("vault checked, checking streams")
         try: 
             key_streams_collection = mongo_client[config['mongo_db']['db']]['key_streams']
             key_streams = key_streams_collection.find({"status" : "exchanging"}) 
@@ -359,7 +362,7 @@ async def device_exchange(key_stream_id:str):
         
         mount = config['vault']['secret_engine'] + "/" + key_stream_id
         n = config['qkdm']['max_key_count']
-        logger.info(f"QKD device started: key_stream_id = {key_stream_id}")
+        print(f"QKD device started: key_stream_id = {key_stream_id}")
         key_stream = await streams_collection.find_one({"_id" : key_stream_id})
         
         while True: 
