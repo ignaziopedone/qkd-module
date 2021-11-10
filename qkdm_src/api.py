@@ -304,40 +304,45 @@ async def init_module(server : bool = False , reset : bool = False, custom_confi
     config = yaml.safe_load(config_file) 
     config_file.close()
 
+    try:
+        if config['qkdm']['protocol'] not in supported_protocols: 
+            return (4, "ERROR: unsupported qkd protocol", -1)
 
-    if config['qkdm']['protocol'] not in supported_protocols: 
-        return (4, "ERROR: unsupported qkd protocol", -1)
-
-    if config['qkdm']['protocol'] == "fake":
-        from qkd_devices.fakeKE import fakeKE as QKDCore
+        if config['qkdm']['protocol'] == "fake":
+            from qkd_devices.fakeKE import fakeKE as QKDCore
+    except Exception as e: 
+        return (11, f"ERROR: wrong config file: {e}", -1)
         
     try: 
         if qkd_device is None: 
             qkd_device = QKDCore(config['qkd_device']['role'], config['qkd_device']['port'], config['qkd_device']['host'], config['qkdm']['max_key_count'])
             if await qkd_device.begin() != 0: 
                 return (4, "ERROR: unable to start qkd device", -1) 
-    except: 
-        return (4, "ERROR: exception in qkd device startup", -1) 
+    except Exception as e: 
+        return (4, f"ERROR: exception in qkd device startup - {e}", -1) 
 
 
     if not server or (server and not reset): 
         try: 
             mongo_client = MongoClient(f"mongodb://{config['mongo_db']['user']}:{config['mongo_db']['password']}@{config['mongo_db']['host']}:{config['mongo_db']['port']}/{config['mongo_db']['db']}?authSource={config['mongo_db']['auth_src']}")
             await mongo_client[config['mongo_db']['db']].list_collection_names()
-        except Exception: 
-            return (11, "ERROR: unable to connect to MongoDB", -1)
+        except Exception as e: 
+            return (11, f"ERROR: unable to connect to MongoDB: {e}", -1)
 
         vault_client = VaultClient(config['vault']['host'], config['vault']['port'], config['vault']['token']) 
         if not (await vault_client.connect()):
             return (11, "ERROR: unable to connect to Vault", -1)
 
-        key_streams_collection = mongo_client[config['mongo_db']['db']]['key_streams']
-        key_streams = key_streams_collection.find({"status" : "exchanging"}) 
-        async for ks in key_streams : 
-            asyncio.create_task(device_exchange(ks['_id']))
+        try: 
+            key_streams_collection = mongo_client[config['mongo_db']['db']]['key_streams']
+            key_streams = key_streams_collection.find({"status" : "exchanging"}) 
+            async for ks in key_streams : 
+                asyncio.create_task(device_exchange(ks['_id']))
+            config['qkdm']['init'] = True 
+        except Exception as e:
+            return (11, f"ERROR: unable to start device exchange: {e}", -1)
 
-        config['qkdm']['init'] = True 
-        
+            
         message =  "QKDM initialized as standalone component" if not server else "QKDM initialized with QKS data from previous registration"
         return (0, message, config['qkdm']['port'])
     else: 

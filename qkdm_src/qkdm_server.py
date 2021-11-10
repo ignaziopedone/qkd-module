@@ -201,7 +201,6 @@ async def exchange():
 async def main():
     global app, serverPort
     try: 
-        app.logger.info(f"Parsing arguments ... ")
         parser = argparse.ArgumentParser()
         parser.add_argument('-server', type=str, choices=['true', 'false'], help="defines QKS presence. If not specified QKDM will run as standalone module, if specified as 'true' qkdm will require for an 'attach_to_server' request for configuration")
         parser.add_argument('-reset', type=str, choices=['true', 'false'], help="forcethe reset of information received from a QKS registration")
@@ -210,7 +209,7 @@ async def main():
         server = True if args.server == 'true' else False 
         reset = True if args.reset == 'true' else False 
         config_file = args.config 
-        app.logger.info(f"QKDM started with: server : {server} - reset : {reset} - config: {config_file}")
+        app.logger.info(f"QKDM starting with: server : {server} - reset : {reset} - config: {config_file}")
     except:
         app.logger.error(f"QKDM ERROR: unable to parse arguments")
         return
