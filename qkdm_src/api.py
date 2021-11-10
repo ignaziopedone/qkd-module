@@ -313,6 +313,7 @@ async def init_module(server : bool = False , reset : bool = False, custom_confi
             from qkd_devices.fakeKE import fakeKE as QKDCore
     except Exception as e: 
         return (11, f"ERROR: wrong config file: {e}", -1)
+    print(f"--- \n {config_file} \n")
     print("config file done, starting qkd device")
         
     # try: 
