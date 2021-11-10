@@ -300,11 +300,11 @@ async def init_module(server : bool = False , reset : bool = False, custom_confi
     if custom_config_file is not None: 
         config_file_name = custom_config_file
 
-    config_file = open(config_file_name, 'r') 
-    config = yaml.safe_load(config_file) 
-    config_file.close()
-
     try:
+        config_file = open(config_file_name, 'r') 
+        config = yaml.safe_load(config_file) 
+        config_file.close()
+
         if config['qkdm']['protocol'] not in supported_protocols: 
             return (4, "ERROR: unsupported qkd protocol", -1)
 

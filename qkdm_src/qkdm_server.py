@@ -215,6 +215,7 @@ async def main():
         return
     
     try: 
+        app.logger.info("Init process started")
         res, message, serverPort = await api.init_module(server, reset, config_file)
 
         if res != 0 and res != 1  : 
