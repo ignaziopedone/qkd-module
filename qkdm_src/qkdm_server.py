@@ -214,17 +214,17 @@ async def main():
         app.logger.error(f"QKDM ERROR: unable to parse arguments")
         return
     
-    #try
-    res, message, serverPort = await api.init_module(server, reset, config_file)
+    try:
+        res, message, serverPort = await api.init_module(server, reset, config_file)
 
-    if res != 0 and res != 1  : 
-        app.logger.error(f"ABORT: unable to init the module - ERROR {message}")
-        return 
-    else: 
-        app.logger.info(f"INIT module - {message}")
-    #except Exception as e: 
-    #    app.logger.error(f"ABORT: unable to init the module - EXCEPTION {e}")
-    #    return
+        if res != 0 and res != 1  : 
+            app.logger.error(f"ABORT: unable to init the module - ERROR {message}")
+            return 
+        else: 
+            app.logger.info(f"INIT module - {message}")
+    except Exception as e: 
+       app.logger.error(f"ABORT: unable to init the module - EXCEPTION {e}")
+       return
 
     app.run(host='0.0.0.0', port=serverPort, loop = asyncio.get_event_loop())
 
