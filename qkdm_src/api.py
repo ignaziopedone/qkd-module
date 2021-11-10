@@ -311,11 +311,13 @@ async def init_module(server : bool = False , reset : bool = False, custom_confi
     if config['qkdm']['protocol'] == "fake":
         from qkd_devices.fakeKE import fakeKE as QKDCore
         
-
-    if qkd_device is None: 
-        qkd_device = QKDCore(config['qkd_device']['role'], config['qkd_device']['port'], config['qkd_device']['host'], config['qkdm']['max_key_count'])
-        if await qkd_device.begin() != 0: 
-            return (4, "ERROR: unable to start qkd device", -1) 
+    try: 
+        if qkd_device is None: 
+            qkd_device = QKDCore(config['qkd_device']['role'], config['qkd_device']['port'], config['qkd_device']['host'], config['qkdm']['max_key_count'])
+            if await qkd_device.begin() != 0: 
+                return (4, "ERROR: unable to start qkd device", -1) 
+    except: 
+        return (4, "ERROR: exception in qkd device startup", -1) 
 
 
     if not server or (server and not reset): 
