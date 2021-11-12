@@ -376,4 +376,4 @@ async def device_exchange(key_stream_id:str):
                         await vault_client.remove(mount, path=str(id)) 
             else: 
                 key_stream = await streams_collection.find_one({"_id" : key_stream_id})
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.01)
