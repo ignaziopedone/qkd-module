@@ -21,7 +21,6 @@ class fakeKE(QKD) :
 
     
     async def begin(self) -> int: 
-        exc = None
         if self.stop[0] == False: 
             return 0
         self.stop[0] = False
@@ -29,7 +28,7 @@ class fakeKE(QKD) :
             try: 
                 server = await asyncio.start_server(self.receive, '0.0.0.0', self.port)
                 self.server_task = asyncio.create_task(server.serve_forever())
-                print("QKD DEVICE: receiver started")
+                print(f"QKD DEVICE: receiver started listening on port {self.port}")
                 return 0
             except Exception: 
                 return 1
@@ -40,7 +39,7 @@ class fakeKE(QKD) :
                     reader, writer = await asyncio.open_connection(self.address, self.port)
                     self.sender_rw['r'] = reader
                     self.sender_rw['w'] = writer
-                    print("QKD DEVICE: sender started")
+                    print(f"QKD DEVICE: sender started connected to {self.address}:{self.port}")
                     return 0 
                 except Exception:
                     await asyncio.sleep(2) # wait and then retry 
@@ -49,11 +48,15 @@ class fakeKE(QKD) :
         
     async def receive(self, reader : asyncio.StreamReader, writer : asyncio.StreamWriter) : 
         while (not self.stop[0]): 
-            data = await reader.read(self.dimension+int(32/8)) 
-            key = data[0:self.dimension] 
-            id = int.from_bytes(data[self.dimension:], 'big')
-            data = (id, key)
-            await self.key_queue.put(data)
+            try: 
+                data = await reader.read(self.dimension+int(32/8)) 
+                key = data[0:self.dimension] 
+                id = int.from_bytes(data[self.dimension:], 'big')
+                data = (id, key)
+                await self.key_queue.put(data)
+            except Exception as e:
+                print(f"Device: exception in receive: {e}") 
+
 
         writer.close()
         await writer.wait_closed()
@@ -75,6 +78,7 @@ class fakeKE(QKD) :
                 id, key = await self.key_queue.get()
                 return key, id, 0
         except Exception as e:
+            print(f"Exception in exchanging from {self.role}: {e}")
             return None, -1, 1 
 
     async def end(self): 
