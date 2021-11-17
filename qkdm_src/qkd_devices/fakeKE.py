@@ -3,7 +3,7 @@ from random import randbytes, getrandbits
 import asyncio
 
 default_dim = 128
-
+key_rate = 2048 # bit per sec
 
 class fakeKE(QKD) : 
     def __init__(self, role:str, port:int, address:str, max_key_count:int, dimension:int=default_dim): 
@@ -18,6 +18,7 @@ class fakeKE(QKD) :
         self.stop = [True]
         self.server_task = None 
         self.sender_rw = {'r' : None, 'w' : None }
+        self.sleeptime = dimension / key_rate
 
     
     async def begin(self) -> int: 
@@ -68,6 +69,7 @@ class fakeKE(QKD) :
         data = b''
         try: 
             if self.role == 'sender' : 
+                await asyncio.sleep(self.sleeptime)
                 writer : asyncio.StreamWriter = self.sender_rw['w']
                 id : int = getrandbits(32) 
                 key : bytes = randbytes(self.dimension)
