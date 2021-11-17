@@ -7,6 +7,7 @@ from threading import Thread
 from base64 import b64encode, b64decode
 from pymongo import ReturnDocument
 import logging
+import time
 
 import aiohttp
 from motor.motor_asyncio import AsyncIOMotorClient as MongoClient
@@ -365,8 +366,13 @@ async def device_exchange(key_stream_id:str):
                 break 
         
             if key_stream['status'] =="exchanging" and len(key_stream['available_keys']) < n : 
+                start = time.time()
                 key, id, status = await qkd_device.exchangeKey()
-                
+                end = time.time() 
+                if config['qkd_device']['role'] == 'sender':
+                    logger.info(f"Key {id} created at time: {start}")
+                else: 
+                    logger.info(f"Key {id} received at time: {end}")
                 if status == 0: 
                     data = {str(id) : b64encode(key).decode()} # bytearray saved as b64 string 
                     await vault_client.writeOrUpdate(mount=mount, path=str(id), data=data) 
