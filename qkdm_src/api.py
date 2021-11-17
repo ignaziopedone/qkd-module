@@ -377,6 +377,7 @@ async def device_exchange(key_stream_id:str):
                     
                     key_stream = await streams_collection.find_one_and_update(({"_id" : key_stream_id, f"available_keys.{n}" : {"$exists" : False}}), {"$push" : {"available_keys" : id}}, return_document=ReturnDocument.AFTER)
                     if config['qkd_device']['role'] == 'sender':
+                        end = time.time_ns()
                         logger.info(f"Key {id} saved in nanoseconds: {end-start}")
                     
                     if key_stream is not None and id not in key_stream['available_keys']: 
