@@ -366,9 +366,9 @@ async def device_exchange(key_stream_id:str):
                 break 
         
             if key_stream['status'] =="exchanging" and len(key_stream['available_keys']) < n : 
-                start = time.time()
+                start = time.time_ns()
                 key, id, status = await qkd_device.exchangeKey()
-                end = time.time() 
+                end = time.time_ns() 
                 if config['qkd_device']['role'] == 'sender':
                     logger.info(f"Key {id} created at time: {start}")
                 else: 
