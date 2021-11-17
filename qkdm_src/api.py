@@ -370,9 +370,7 @@ async def device_exchange(key_stream_id:str):
                 key, id, status = await qkd_device.exchangeKey()
                 end = time.time_ns() 
                 if config['qkd_device']['role'] == 'sender':
-                    logger.info(f"Key {id} created at time: {start}")
-                else: 
-                    logger.info(f"Key {id} received at time: {end}")
+                    logger.info(f"Key {id} sent in nanosec: {end-start}")
                 if status == 0: 
                     data = {str(id) : b64encode(key).decode()} # bytearray saved as b64 string 
                     await vault_client.writeOrUpdate(mount=mount, path=str(id), data=data) 
