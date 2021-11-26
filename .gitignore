@@ -53,3 +53,6 @@ Thumbs.db
 !.vscode/launch.json
 !.vscode/extensions.json
 *.code-workspace
+
+*.pdf 
+**/**/*.pdf
